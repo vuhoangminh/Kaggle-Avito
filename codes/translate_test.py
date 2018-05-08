@@ -70,8 +70,8 @@ def read_file(filename):
 #         'category_name', 'param_1', 'param_2', 'param_3', 
 #         'title', 'description']
 
-# CAT_TRANSLATE = ['title', 'description']
-CAT_TRANSLATE = ['title']
+CAT_TRANSLATE = ['title', 'description']
+# CAT_TRANSLATE = ['description']
 
 def build_map(df, col, threshold):
     map = {np.nan:np.nan}
@@ -103,13 +103,10 @@ def chunks(l, n):
     n = max(1, n)
     return (l[i:i+n] for i in range(0, l, n))
 
+import pickle
 
-# import goslate
-# import concurrent.futures
-# executor = concurrent.futures.ThreadPoolExecutor(max_workers=200)
-# gs = goslate.Goslate(service_urls=['http://translate.google.de'], executor=executor)
-# # gs = goslate.Goslate(executor=executor)
-
+# with open('filename.pickle', 'wb') as handle:
+#     pickle.dump(a, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
 def build_dict(df, col, threshold, which_dataset):
     unique_element = df[col].unique()
@@ -139,19 +136,15 @@ def build_dict(df, col, threshold, which_dataset):
             for element in k_unique_element:
                 if i%10==0: 
                     print(i)
-                    # print('len of 10 lement:', count_len)
+                    print('len of 10 lement:', count_len)
                     count_len = 0
                 if i%threshold==0: 
                     print('{}/{}'.format(i,len(k_unique_element)))
                     translator = Translator()
                 if debug: print ('doing', element)
                 if not k_unique_element_null[i]:
-                    # element_translated = gs.translate(element, 'en')
                     element_translated = translator.translate(element, dest='En')
                     count_len = count_len + len(element)
-                    # map[element] = element_translated
-                    # print(element, element_translated)
-                    if debug: print('to', element_translated)
                     map[element] = element_translated.text
                     if debug: print('to', element_translated.text)
                 i = i+1  
@@ -220,7 +213,7 @@ def read_and_translate(filename, destname):
     print (df_translated.head())
 
 def read_and_build_dict(filename, destname, which_dataset):
-    print('>> reading', which_dataset)
+    print('>> reading...')
     df = read_file(filename)
     # df.head(5)
 

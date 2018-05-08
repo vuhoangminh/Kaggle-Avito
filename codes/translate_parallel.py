@@ -236,8 +236,8 @@ def read_and_build_dict(filename, destname, which_dataset):
 
 # read_and_translate(filename, destname)    
 
-for dataset in ['train', 'test']:
-# for dataset in ['test', 'train']:    
+# for dataset in ['train', 'test']:
+for dataset in ['test', 'train']:    
     filename = '../input/' + dataset + '.csv'
     destname = '../input/' + dataset + '_translated.feather'
     read_and_build_dict(filename, destname, dataset)
