@@ -118,7 +118,8 @@ def build_dict(df, col, threshold, which_dataset):
     range_split = range(0,len(unique_element),NCHUNKS)
     num_split = len(range(0,len(unique_element),NCHUNKS))
     print_memory()
-    for k in range(num_split):
+    for j in range(num_split):
+        k = num_split-j-1
         print('process {}/{}'.format(k+1,num_split))
         savename = 'translated_{}_{}_{}.pickle'.format(which_dataset, col, k)
         if os.path.exists(savename):
@@ -232,9 +233,6 @@ def read_and_build_dict(filename, destname, which_dataset):
         print('>> doing', feature)
         translate_col_and_save(df_translated, feature, which_dataset)
 
-
-
-# read_and_translate(filename, destname)    
 
 # for dataset in ['train', 'test']:
 for dataset in ['test', 'train']:    
