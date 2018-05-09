@@ -120,22 +120,19 @@ def translate_and_save_each_chunk_description(k, num_split, range_split, unique_
         if i%threshold==0: 
             print('{}/{}'.format(i,len(k_unique_element)))
         if not k_unique_element_null[i]:
-            # sentences = split_text_into_sentences(element, 1000)
-            # element_translated = ''
-            # for sentence in sentences:
-            #     if debug: print('from:', sentence)
-            #     translator = Translator()
-            #     print(len(sentence))
-            #     sentence_translated = translator.translate(sentence, dest='En')
-            #     element_translated = element_translated + ' ' + sentence_translated.text
-            translator = Translator()
             element_clean = ''.join(c for c in element if c <= '\uFFFF')
-            if debug: print('from', element)
-            element_translated = translator.translate(element_clean, dest='En')
-            if debug: print('to', element_translated.text)    
-            map[element] = element_translated.text
-                    
-
+            sentences = split_text_into_sentences(element_clean, 1000)
+            element_translated = ''
+            for sentence in sentences:
+                if debug: print('from:', sentence)
+                translator = Translator()
+                if debug: print(len(sentence))
+                sentence_translated = translator.translate(sentence, dest='En')
+                element_translated = element_translated + ' ' + sentence_translated.text
+            map[element] = element_translated
+            if debug: 
+                print('from:', element)
+                print('to:', element_translated)
         i = i+1 
     if not debug:         
         print('saving to', savename)

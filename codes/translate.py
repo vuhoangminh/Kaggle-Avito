@@ -71,7 +71,7 @@ def read_file(filename):
 #         'title', 'description']
 
 # CAT_TRANSLATE = ['title', 'description']
-CAT_TRANSLATE = ['description']
+CAT_TRANSLATE = ['title']
 
 def build_map(df, col, threshold):
     map = {np.nan:np.nan}
