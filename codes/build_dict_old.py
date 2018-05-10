@@ -27,7 +27,6 @@ parser.add_argument('-f', '--fromiloc',default=0, type=int)
 parser.add_argument('-b', '--debug',default=0, type=int)
 parser.add_argument('-s', '--stepiloc',default=1000, type=int)
 parser.add_argument('-rm', '--readmode',default='.csv', type=str, choices=['.csv', '.feather'])
-parser.add_argument('-t', '--title',default=0, type=int)
 
 process = psutil.Process(os.getpid())
 
@@ -48,7 +47,6 @@ def main():
     debug = args.debug
     STEP = args.stepiloc
     READMODE = args.readmode
-    REDUCE = args.title
 
     if debug==2:
         NCHUNKS = 13
@@ -59,10 +57,7 @@ def main():
 
     print('summary: debug {}, chunks {}, from {}'.format(debug, NCHUNKS, FROM))
     
-    if REDUCE:
-        filename = '../input/' + which_dataset + '_title' + READMODE
-    else:    
-        filename = '../input/' + which_dataset + READMODE
+    filename = '../input/' + which_dataset + READMODE
     read_and_build_dict(filename, which_dataset, FROM)
 
 def print_memory(print_string=''):
@@ -97,11 +92,11 @@ def exporter(x,dest_path):
 
 def read_file(filename):
     if debug==2:
-        train_df = pd.read_csv(filename, nrows=10, usecols=CAT_TRANSLATE)  
+        train_df = pd.read_csv(filename, nrows=10)  
     if debug==1:
-        train_df = pd.read_csv(filename, nrows=10000, usecols=CAT_TRANSLATE)
+        train_df = pd.read_csv(filename, nrows=10000)
     if debug==0:
-        train_df = pd.read_csv(filename, usecols=CAT_TRANSLATE)          
+        train_df = pd.read_csv(filename)          
     return train_df  
 
 # CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
@@ -130,7 +125,7 @@ def translate_and_save_each_chunk_description(k, num_split, range_split, unique_
     if debug: print('null:', k_unique_element_null)
     i = 0
     for element in k_unique_element:
-        if i%20==0:
+        if i%threshold==5:
             print(i) 
         if i%threshold==0: 
             print('{}/{}'.format(i,len(k_unique_element)))
@@ -251,7 +246,7 @@ def translate_col_and_save(df, col, which_dataset, from_iloc):
         if debug==2:
             build_dict(df, col, 10, which_dataset, from_iloc)
         else:                           
-            build_dict(df, col, 100, which_dataset, from_iloc)   
+            build_dict(df, col, 200, which_dataset, from_iloc)   
     elif col=='description':            
         if debug==2:
             build_dict(df, col, 10, which_dataset, from_iloc)
@@ -264,12 +259,55 @@ def translate_col_and_save(df, col, which_dataset, from_iloc):
             build_dict(df, col, 400, which_dataset, from_iloc)                          
 
 
+def translate_col_to_en(df, col):
+    if col=='title' or col=='description':
+        if debug:
+            map_dict = build_map(df, col, 10)
+        else:                           
+            map_dict = build_map(df, col, 200)   
+    else:
+        if debug:
+            map_dict = build_map(df, col, 10)
+        else:            
+            map_dict = build_map(df, col, 400)                          
+    if debug: print(map_dict)
+    colname_translated = col
+    print('mapping...')
+    df[colname_translated] = df[col].apply(lambda x : map_dict[x])
+    return df
+
 def drop_to_save_memory(df):
     for feature in df:
         if feature not in CAT_TRANSLATE:
             df = df.drop([feature], axis=1)
     return df            
 
+
+def read_and_translate(filename, destname):
+    print('>> reading', filename)
+    if READMODE!='.feather':
+        df = read_file(filename)
+    else:
+        df = mlc.load(filename) 
+
+    print_memory()
+    df = drop_to_save_memory(df)               
+    print_memory()
+    print(df.head(5))
+
+    for feature in df:
+        df = desc_missing(df,feature)
+
+    df_translated = df
+    for feature in CAT_TRANSLATE:
+        print('>> doing', feature)
+        df_translated = translate_col_to_en(df_translated, feature)
+
+
+    mlc.save(df_translated, destname) # DataFrames can be saved with ultra-fast feather format.
+    del df_translated; gc.collect()
+    df_translated = mlc.load(destname)
+    print (df_translated.head())
 
 def read_and_build_dict(filename, which_dataset, from_iloc):
     print('>> reading', filename)
@@ -291,8 +329,37 @@ def read_and_build_dict(filename, which_dataset, from_iloc):
         print('>> doing', feature)
         translate_col_and_save(df_translated, feature, which_dataset, from_iloc)
 
+def count_greater_N_character(df, col, N):
+    map = dict()
+    count = 0
+    max_len = 0
+    min_len = 100000000
+    print('>> counting')
+    for index, row in df.iterrows():
+        e = row[col]
+        len_e = len(e)
+        if max_len<len_e: 
+            max_len = len_e
+        if min_len>len_e: 
+            min_len = len_e            
+        # if len_e>N: print(index, len_e)
+        if len_e>N: 
+            count=count+1
+            map[e] = len_e
+    return map, count, max_len, min_len
 
+def read_and_count_character(filename, which_dataset, from_iloc):
+    print('>> reading', which_dataset)
+    df = read_file(filename)
+    
+    for feature in df:
+        df = desc_missing(df,feature)
 
+    map, count, max_len, min_len = count_greater_N_character(df, 'description', 3000)
+    print(count, 'elements')
+    print('max', max_len)
+    print('min', min_len)
+    # print(map)
 
 
 if __name__ == '__main__':

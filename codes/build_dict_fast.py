@@ -22,22 +22,14 @@ import nltk, textwrap
 parser = argparse.ArgumentParser(
     description='translate',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-d', '--dataset', type=str, default='train',choices=['train','test','train_active','test_active'])
+parser.add_argument('-d', '--dataset', type=str, default='train_active',choices=['train_active','test_active'])
 parser.add_argument('-f', '--fromiloc',default=0, type=int)
 parser.add_argument('-b', '--debug',default=0, type=int)
 parser.add_argument('-s', '--stepiloc',default=1000, type=int)
-parser.add_argument('-rm', '--readmode',default='.csv', type=str, choices=['.csv', '.feather'])
-parser.add_argument('-t', '--title',default=0, type=int)
+parser.add_argument('-rm', '--readmode',default='.pickle', type=str, choices=['.csv', '.feather', '.pickle'])
 
 process = psutil.Process(os.getpid())
 
-# CAT_TRANSLATE = ['description']
-# CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
-#         'category_name', 'param_1', 'param_2', 'param_3', 
-#         'title', 'description']
-# CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
-#         'category_name', 'param_1', 'param_2', 'param_3', 
-#         'title']        
 CAT_TRANSLATE = ['title']
 
 def main():
@@ -48,7 +40,6 @@ def main():
     debug = args.debug
     STEP = args.stepiloc
     READMODE = args.readmode
-    REDUCE = args.title
 
     if debug==2:
         NCHUNKS = 13
@@ -59,10 +50,7 @@ def main():
 
     print('summary: debug {}, chunks {}, from {}'.format(debug, NCHUNKS, FROM))
     
-    if REDUCE:
-        filename = '../input/' + which_dataset + '_title' + READMODE
-    else:    
-        filename = '../input/' + which_dataset + READMODE
+    filename = '../input/' + which_dataset + '_title_unique' + READMODE
     read_and_build_dict(filename, which_dataset, FROM)
 
 def print_memory(print_string=''):
@@ -104,17 +92,9 @@ def read_file(filename):
         train_df = pd.read_csv(filename, usecols=CAT_TRANSLATE)          
     return train_df  
 
-# CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
-#         'category_name', 'param_1', 'param_2', 'param_3', 
-#         'title', 'description']
-
-# CAT_TRANSLATE = ['title', 'description']
 def split_text_into_sentences(txt, N):
-    # tokenizer = nltk.tokenize.punkt.PunktSentenceTokenizer()
-    # sentences = tokenizer.tokenize(txt)
     sentences = textwrap.wrap(txt, N, break_long_words=False)
     return sentences        
-
 
 def translate_and_save_each_chunk_description(k, num_split, range_split, unique_element, 
             savename, threshold):
@@ -223,77 +203,37 @@ def translate_and_save_each_chunk(k, num_split, range_split, unique_element,
     print_memory()        
     del map; gc.collect()      
 
-def build_dict(df, col, threshold, which_dataset, from_iloc):
-    unique_element = df[col].unique()
-    # if debug: print (unique_element.encode("utf-8"))
-    
+def build_dict(unique_element, threshold, which_dataset, from_iloc):   
     range_split = range(0,len(unique_element),NCHUNKS)
     num_split = len(range(0,len(unique_element),NCHUNKS))
     print_memory()
     for k in range(num_split):
         if k>=from_iloc and k<from_iloc+STEP:
             print('process {}/{}'.format(k,num_split-1))
-            savename = '../dict_part/translated_{}_{}_{}.pickle'.format(which_dataset, col, k)
+            savename = '../dict_part/translated_{}_{}_{}.pickle'.format(which_dataset, 'title', k)
             if os.path.exists(savename):
                 print('done already')
             else:     
-                if col!='description' and col!='title':           
-                    translate_and_save_each_chunk(k, num_split, 
-                            range_split, unique_element, savename, threshold)
-                else:
-                    translate_and_save_each_chunk_description(k, num_split, 
-                            range_split, unique_element, savename, threshold)                  
+                translate_and_save_each_chunk(k, num_split, 
+                            range_split, unique_element, savename, threshold)               
 
-    # return map   
-
-def translate_col_and_save(df, col, which_dataset, from_iloc):
-    if col=='title':
-        if debug==2:
-            build_dict(df, col, 10, which_dataset, from_iloc)
-        else:                           
-            build_dict(df, col, 100, which_dataset, from_iloc)   
-    elif col=='description':            
-        if debug==2:
-            build_dict(df, col, 10, which_dataset, from_iloc)
-        else:                           
-            build_dict(df, col, 1, which_dataset, from_iloc)           
-    else:
-        if debug==2:
-            build_dict(df, col, 10, which_dataset, from_iloc)
-        else:            
-            build_dict(df, col, 400, which_dataset, from_iloc)                          
-
-
+def translate_col_and_save(unique_element, which_dataset, from_iloc):
+    if debug==2:
+        build_dict(unique_element, 10, which_dataset, from_iloc)
+    else:                           
+        build_dict(unique_element, 100, which_dataset, from_iloc)   
+                         
 def drop_to_save_memory(df):
     for feature in df:
         if feature not in CAT_TRANSLATE:
             df = df.drop([feature], axis=1)
     return df            
 
-
 def read_and_build_dict(filename, which_dataset, from_iloc):
     print('>> reading', filename)
-    if READMODE!='.feather':
-        df = read_file(filename)
-    else:
-        df = mlc.load(filename)   
-
+    unique_element = pickle.load(open(filename, "rb" ))
     print_memory()
-    df = drop_to_save_memory(df)               
-    print_memory()
-    print(df.head(5))        
-
-    for feature in df:
-        df = desc_missing(df,feature)
-
-    df_translated = df
-    for feature in CAT_TRANSLATE:
-        print('>> doing', feature)
-        translate_col_and_save(df_translated, feature, which_dataset, from_iloc)
-
-
-
-
+    translate_col_and_save(unique_element, which_dataset, from_iloc)
 
 if __name__ == '__main__':
     main()
