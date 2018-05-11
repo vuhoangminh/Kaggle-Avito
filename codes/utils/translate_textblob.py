@@ -26,7 +26,7 @@ process = psutil.Process(os.getpid())
 parser = argparse.ArgumentParser(
     description='translate',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-b', '--debug', default=0, type=int)
+parser.add_argument('-b', '--debug', default=2, type=int)
 parser.add_argument('-d', '--dataset', type=str, default='train_translated',
         choices=['train_translated', 'train_active_translated', 'test_translated',
         'test_active_translated'])

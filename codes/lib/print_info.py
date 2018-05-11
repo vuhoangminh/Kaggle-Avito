@@ -14,3 +14,6 @@ def print_debug(debug):
 
 def print_memory(print_string=''):
     print('Total memory in use ' + print_string + ': ', round(process.memory_info().rss/(2**30),2), ' GB')
+
+def print_doing(str):
+    print('>>', str)    
