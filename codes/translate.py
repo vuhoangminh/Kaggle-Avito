@@ -20,26 +20,28 @@ import nltk, textwrap
 parser = argparse.ArgumentParser(
     description='translate',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-d', '--dataset', type=str, default='all',choices=['train','test','all'])
+parser.add_argument('-d', '--dataset', type=str, default='all',choices=['train','test','all','train_active','test_active'])
 parser.add_argument('-b', '--debug', default=0, type=int)
+parser.add_argument('-rm', '--readmode',default='.feather', type=str, choices=['.csv', '.feather'])
 
 process = psutil.Process(os.getpid())
 
 
-CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
-        'category_name', 'param_1', 'param_2', 'param_3', 
-        'title', 'description']
-
 # CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
 #         'category_name', 'param_1', 'param_2', 'param_3', 
-#         'title']        
+#         'title', 'description']
+
+CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
+        'category_name', 'param_1', 'param_2', 'param_3', 
+        'title']        
 
 
 def main():
-    global args, debug, NCHUNKS
+    global args, debug, NCHUNKS, READMODE
     args = parser.parse_args()
     datasets = args.dataset
     debug = args.debug
+    READMODE = args.readmode
 
     if debug==2:
         NCHUNKS = 13
@@ -51,17 +53,17 @@ def main():
     print('summary: debug {}, chunks {}'.format(debug, NCHUNKS))
     
     if datasets == 'all':
-        datasets = ['train', 'test']
+        datasets = ['train','test', 'train_active','test_active']
     else:
         datasets = [datasets]                
 
     for which_dataset in datasets:        
-        filename = '../input/' + which_dataset + '.csv'
+        filename = '../input/' + which_dataset + READMODE
         read_and_build_map(filename, which_dataset)
         df_translated = read_and_translate(filename, which_dataset)
-        destname = '../input/' + which_dataset + '.feather'
+        destname = '../input/' + which_dataset + '_translated.feather'
         print('>> saving to ...', destname)
-        mlc.save(df_translated, destname) # DataFrames can be saved with ultra-fast feather format.
+        mlc.save(df_translated, destname) 
         del df_translated; gc.collect()
         print('>> loading ...', destname)
         df_translated = mlc.load(destname)
@@ -92,23 +94,30 @@ def read_file(filename):
     return train_df  
 
 def read_and_translate(filename, which_dataset):
-    print('>> reading', which_dataset)
-    df = read_file(filename)
+    print('>> reading', filename)
+    if READMODE!='.feather':
+        df = read_file(filename)
+    else:
+        df = mlc.load(filename) 
     for feature in df:
         df = desc_missing(df,feature)
     df_translated = df
     for feature in CAT_TRANSLATE:
+        print('>> translating', feature)
         dstname = '../dict/dict_ru_to_en_{}_{}.pickle'.format(which_dataset, feature)
         map_dict = pickle.load(open(dstname, "rb" ))
+        map_dict['n/a'] = 'n/a'
         new_feature = feature + '_en'
         df_translated[new_feature] = df[feature].apply(lambda x : map_dict[x])        
                                 
     return df_translated 
 
 def read_and_build_map(filename, which_dataset):
-    print('>> reading', which_dataset)
-    df = read_file(filename)
-    # df.head(5)
+    print('>> reading', filename)
+    if READMODE!='.feather':
+        df = read_file(filename)
+    else:
+        df = mlc.load(filename) 
 
     for feature in df:
         df = desc_missing(df,feature)
@@ -126,7 +135,7 @@ def read_and_build_map(filename, which_dataset):
         else:            
             for k in range(num_split):
                 if is_cont:
-                    savename = '../dict/translated_{}_{}_{}.pickle'.format(which_dataset, feature, k)
+                    savename = '../dict_part/translated_{}_{}_{}.pickle'.format(which_dataset, feature, k)
                     if os.path.exists(savename):
                         print('loading', savename)
                         map_temp = pickle.load(open(savename, "rb" ))

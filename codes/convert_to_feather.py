@@ -1,4 +1,3 @@
-   
 import pickle
 import argparse
 import pandas as pd
@@ -44,15 +43,44 @@ def convert():
 
 def test_load_time():
     for name in ['train', 'test', 'train_active', 
-        'test_active', 'periods_train', 'periods_test']:
+        'test_active', 'periods_train', 'periods_test', 
+        'train_translated', 'train_active_translated',
+        'test_translated', 'test_active_translated']:
+        print('----------------------------------------------------------------')
         dstname = '../input/{}.feather'.format(name)
         t_start = time.time()
-        print('>> loading...')
+        print('>> loading', dstname)
         df = mlc.load(dstname)
+        print('no. of rows:', len(df))
+        print(df.head())
+        del df; gc.collect()
         t_end = time.time()
         print('loading time:', t_end-t_start)
-        print('no. of rows:', len(df))
-    
 
-test_load_time()
+def convert_to_pickle():
+    for name in ['train_active_translated', 'test_active_translated']:
+        filename = '../input/{}.feather'.format(name)
+        print('----------------------------------------------------------------')
+        print('>> loading', filename)
+        t_start = time.time()
+        df = mlc.load(filename)
+        t_end = time.time()
+        print('loading time feather:', t_end-t_start)
+        print('no. of rows:', len(df))
+        dstname = '../input/{}.pickle'.format(name)
+        print('>> saving', dstname)
+        with open(dstname, 'wb') as handle:
+            pickle.dump(df, handle, protocol=pickle.HIGHEST_PROTOCOL)   
+        del df; gc.collect()
+        print('>> loading', dstname)
+        t_start = time.time()
+        df = pickle.load(open(dstname, "rb" ))
+        t_end = time.time()
+        print('loading time pickle:', t_end-t_start)
+        print('no. of rows:', len(df))
+        
+
+
+# test_load_time()
+convert_to_pickle()
 

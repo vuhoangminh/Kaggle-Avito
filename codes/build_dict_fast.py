@@ -22,24 +22,35 @@ import nltk, textwrap
 parser = argparse.ArgumentParser(
     description='translate',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument('-d', '--dataset', type=str, default='train_active',choices=['train_active','test_active'])
+parser.add_argument('-d', '--dataset', type=str, default='test_active',choices=['train_active','test_active'])
 parser.add_argument('-f', '--fromiloc',default=0, type=int)
 parser.add_argument('-b', '--debug',default=0, type=int)
-parser.add_argument('-s', '--stepiloc',default=1000, type=int)
+parser.add_argument('-s', '--stepiloc',default=4000, type=int)
 parser.add_argument('-rm', '--readmode',default='.pickle', type=str, choices=['.csv', '.feather', '.pickle'])
+parser.add_argument('-cm', '--checkmode',default=0, type=int)
 
 process = psutil.Process(os.getpid())
 
 CAT_TRANSLATE = ['title']
 
+def write_bash_missing_file(list_missing):
+    str = ''
+    for file in list_missing:
+        temp = 'python -u build_dict_fast.py -f {} -s {} & '.format(file, 1)
+        str = str + temp
+    file = open('bash.txt','w') 
+    file.write(str) 
+    print (str)    
+
 def main():
-    global args, debug, NCHUNKS, STEP, READMODE
+    global args, debug, NCHUNKS, STEP, READMODE, CHECKMODE
     args = parser.parse_args()
     which_dataset = args.dataset
     FROM = args.fromiloc
     debug = args.debug
     STEP = args.stepiloc
     READMODE = args.readmode
+    CHECKMODE = args.checkmode
 
     if debug==2:
         NCHUNKS = 13
@@ -207,15 +218,28 @@ def build_dict(unique_element, threshold, which_dataset, from_iloc):
     range_split = range(0,len(unique_element),NCHUNKS)
     num_split = len(range(0,len(unique_element),NCHUNKS))
     print_memory()
+    count_missing = 0
+    list_missing = []
     for k in range(num_split):
         if k>=from_iloc and k<from_iloc+STEP:
             print('process {}/{}'.format(k,num_split-1))
             savename = '../dict_part/translated_{}_{}_{}.pickle'.format(which_dataset, 'title', k)
             if os.path.exists(savename):
                 print('done already')
-            else:     
-                translate_and_save_each_chunk(k, num_split, 
+            else: 
+                if CHECKMODE:
+                    count_missing = count_missing + 1
+                    list_missing.append(k)
+                    print('missing', savename)
+                else:
+                    translate_and_save_each_chunk(k, num_split, 
                             range_split, unique_element, savename, threshold)               
+    if CHECKMODE:
+        print (count_missing, 'is missing')
+        write_bash_missing_file(list_missing)
+        # print (list_missing)
+
+
 
 def translate_col_and_save(unique_element, which_dataset, from_iloc):
     if debug==2:
