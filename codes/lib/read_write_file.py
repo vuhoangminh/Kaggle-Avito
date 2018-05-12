@@ -1,28 +1,37 @@
 import mlcrate as mlc
 import pandas as pd
 import pickle, os
+from .print_info import print_doing
+   
 
 def save_pickle(df, filename):
+    print_doing('saving to {}'.format(filename))
     with open(filename, 'wb') as handle:
         pickle.dump(df, handle, protocol=pickle.HIGHEST_PROTOCOL) 
 
 def save_feather(df, filename):
+    print_doing('saving to {}'.format(filename))
     mlc.save(df, filename)  
 
 def save_csv(df, filename, is_sub=False):
+    print_doing('saving to {}'.format(filename))
     if is_sub:
         df.to_csv(filename,index=False,compression='gzip')
     else:
         df.to_csv(filename,index=False)                
 
 def load_pickle(filename):
+    print_doing('read {}'.format(filename))
     df = pickle.load(open(filename, "rb" ))
     return df
 
 def load_feather(filename):
-    return mlc.load(filename)
+    print_doing('read {}'.format(filename))
+    df = mlc.load(filename)
+    return df
 
 def load_csv(filename, nrows=0):
+    print_doing('read {}'.format(filename))
     if nrows>0:
         df = pd.read_csv(filename, 
                 nrows=nrows)
@@ -31,8 +40,6 @@ def load_csv(filename, nrows=0):
     return df        
 
 def read_train_test(filename_train, filename_test, ext, is_merged):
-    dirname=os.path.dirname 
-    print(dirname)
     if ext=='.csv':
         train_df = load_csv(filename_train)
         test_df = load_csv(filename_test)
@@ -50,7 +57,6 @@ def read_train_test(filename_train, filename_test, ext, is_merged):
         return train_df, test_df
 
 def save_file(df, filename, ext):
-    print(os.getcwd())
     if ext == '.pickle':
         save_pickle(df, filename)
     elif ext == '.feather':
