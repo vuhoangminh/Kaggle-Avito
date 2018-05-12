@@ -23,13 +23,16 @@ import glob
 import time
 import nltk, textwrap
 import h5py
+from scipy.sparse import hstack, csr_matrix
 
 from lib.print_info import print_debug, print_doing, print_memory
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
 from lib.prep_hdf5 import get_datatype, get_info_key_hdf5, add_dataset_to_hdf5
+from lib.prepare_training import get_text_matrix, read_processed_h5
 import lib.configs as configs
 import features_list
+from features_list import PREDICTORS
 
 from sklearn import preprocessing
 
@@ -85,21 +88,25 @@ def main():
 
     if DEBUG:
         storename = '../processed_features_debug{}/{}_debug{}.h5'.format(DEBUG, 'train', DEBUG)
+        mat_filename = '../processed_features_debug{}/text_feature_kernel.pickle'.format(DEBUG)
     else:
         storename = '../processed_features/{}.h5'.format('train')
+        mat_filename = '../processed_features_debug{}/text_feature_kernel.pickle'.format(DEBUG)
+
+
     PREDICTORS = get_predictors(storename)
     
-    DO(storename,7,3,1)
+    DO(mat_filename, storename,7,3,1)
 
 
 def get_predictors(storename):
-    with h5py.File(storename,'r') as hf:
-        feature_list = list(hf.keys())
-    predictors = []
-    for feature in feature_list:
-        if '_en' not in feature and feature not in REMOVED_LIST:
-            predictors = predictors + [feature]
-    return predictors
+    # with h5py.File(storename,'r') as hf:
+    #     feature_list = list(hf.keys())
+    # predictors = []
+    # for feature in feature_list:
+    #     if '_en' not in feature and feature not in REMOVED_LIST:
+    #         predictors = predictors + [feature]
+    return PREDICTORS
 
 
 def get_categorical(predictors):
@@ -114,26 +121,10 @@ def get_categorical(predictors):
     print('number of categorical features:', len(categorical))                        
     return categorical  
 
-def read_processed_h5(filename, predictors):
-    with h5py.File(filename,'r') as hf:
-        feature_list = list(hf.keys())
-    train_df = pd.DataFrame()
-    t0 = time.time()
-    for feature in feature_list:
-        if feature in predictors:
-            print('>> adding', feature)
-            train_df[feature] = pd.read_hdf(filename, key=feature)  
-            if feature in CATEGORICAL:
-                train_df[feature] = train_df[feature].astype('category')                                                                                                       
-            print_memory()
-    t1 = time.time()
-    total = t1-t0
-    print('total reading time:', total)
-    print(train_df.info())   
-    return train_df
+def create_list(loop_count):
+  return ''.join([num for num in range(loop_count)])
 
-
-def DO(storename,num_leaves,max_depth, option):
+def DO(mat_filename, storename,num_leaves,max_depth, option):
     frac = FRAC
     print('------------------------------------------------')
     print('start...')
@@ -162,14 +153,13 @@ def DO(storename,num_leaves,max_depth, option):
     print('option:', option)
 
     print('----------------------------------------------------------')
-    train_df = read_processed_h5(storename, predictors+target)
-
+    train_df = read_processed_h5(storename, predictors+target, categorical)
     lbl = preprocessing.LabelEncoder()
     for col in categorical:
         train_df[col] = lbl.fit_transform(train_df[col].astype(str))
 
     if DEBUG: print(train_df.head()); print(train_df.info())
-    train_df = train_df.sample(frac=frac, random_state = SEED)
+    # train_df = train_df.sample(frac=frac, random_state = SEED)
     print_memory('afer reading train:')
     print(train_df.head())
     print("train size: ", len(train_df))
@@ -183,11 +173,9 @@ def DO(storename,num_leaves,max_depth, option):
         'boosting_type': boosting_type,
         'objective': 'regression',
         'metric': 'rmse',
-        'learning_rate': 0.01,
+        'learning_rate': 0.1,
         'num_leaves': num_leaves,  # we should let it be smaller than 2^(max_depth)
         'max_depth': max_depth,  # -1 means no limit
-        'min_data_in_leaf': 16,  # Minimum number of data need in a child(min_data_in_leaf)
-        'max_bin': 100,  # Number of bucketed bin for feature values
         'subsample': 0.9,  # Subsample ratio of the training instance.
         'subsample_freq': 1,  # frequence of subsample, <=0 means no enable
         'feature_fraction': 0.9,  # Subsample ratio of columns when constructing each tree.
@@ -201,11 +189,28 @@ def DO(storename,num_leaves,max_depth, option):
     }
     print ('params:', params)
 
-    print('>> cleaning train...')
+    print_doing('cleaning train...')
     train_df_array = train_df[predictors].values
     train_df_labels = train_df[target].values.astype('int').flatten()
     del train_df; gc.collect()
     print_memory()
+
+    print_doing('reading text matrix')
+    train_mat_text = get_text_matrix(mat_filename, 'train', DEBUG, train_df_array.shape[0])
+
+    print_doing('stack two matrix')
+    train_df_array = hstack([csr_matrix(train_df_array),train_mat_text])
+
+    # for i in range(train_mat_text.shape[1]):
+
+    lst = list(range(train_mat_text.shape[1]))
+    new_predictors = [str(i) for i in lst]
+    
+    
+    # create_list(train_mat_text.shape[1])
+    predictors = predictors + new_predictors
+
+    del train_mat_text; gc.collect()
 
     print('>> prepare dataset...')
     dtrain_lgb = lgb.Dataset(train_df_array, label=train_df_labels,
@@ -219,14 +224,14 @@ def DO(storename,num_leaves,max_depth, option):
     cv_results  = lgb.cv(params, 
                         dtrain_lgb, 
                         categorical_feature = categorical,
-                        num_boost_round=3000,                       
+                        num_boost_round=20000,                       
                         metrics='rmse',
                         seed = SEED,
                         shuffle = False,
                         # stratified=True, 
                         nfold=10, 
                         show_stdv=True,
-                        early_stopping_rounds=50, 
+                        early_stopping_rounds=100, 
                         verbose_eval=True)                     
 
 
@@ -251,7 +256,9 @@ def DO(storename,num_leaves,max_depth, option):
     print('--------------------------------------------------------------------') 
     print('>> save model...')
     # save model to file
-    model_lgb.save_model(modelfilename+'.txt')
+
+    if not DEBUG:
+        model_lgb.save_model(modelfilename+'.txt')
 
     # print('--------------------------------------------------------------------') 
     # print('>> reading test')

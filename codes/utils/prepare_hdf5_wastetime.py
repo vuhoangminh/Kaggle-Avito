@@ -45,8 +45,8 @@ def main():
     print_debug(DEBUG)
     for dataset in ['train', 'test']:
         do_dataset(dataset)
-    # write_all_feature_to_text()        
-
+    write_all_feature_to_text()        
+         
 def do_dataset(dataset):
     train_df, test_df = read_dataset(False)
     len_train = len(train_df)
@@ -68,22 +68,62 @@ def do_dataset(dataset):
 
     files = glob.glob(featuredir + '*.pickle') 
     for file in files:
-        if 'text_feature_kernel' not in file:
-            print(file)
-            filename = file
-            print ('\n>> doing', filename)
-            df = load_pickle(filename)
-            print_doing('extract')
-            if DEBUG: print(df.head()); print(df.tail())
-            if dataset=='train':
-                df = df.iloc[:len_train]
-                if DEBUG: print('train: ', df.head())
-            else:
-                df = df.iloc[len_train:]                        
-                if DEBUG: print('test: ', df.tail())
-            print('merging...')
-            add_dataset_to_hdf5(storename, df)
-            print_memory() 
+        if 'train' not in file and 'test' not in file:
+            if 'text_feature_kernel' in file:
+                print(file)
+                filename = file
+                print ('\n>> doing', filename)
+                if DEBUG:
+                    if '_en' in file:
+                        savename = '../processed_features_debug{}/{}_text_dense_en_debug{}.pickle'.format(DEBUG, dataset, DEBUG)
+                    else:
+                        savename = '../processed_features_debug{}/{}_text_dense_debug{}.pickle'.format(DEBUG, dataset, DEBUG)                                        
+                else:
+                    if '_en' in file:
+                        savename = '../processed_features/{}_text_dense_en.h5'.format(dataset)
+                    else:
+                        savename = '../processed_features/{}_text_dense.h5'.format(dataset) 
+
+                if os.path.exists(savename):
+                    print('done already')
+                else:                
+                    mat = load_pickle(filename)
+                    mat = mat.todense()
+
+                    if DEBUG: print(mat.shape, np.sum(mat))
+                    print_doing('extract')
+
+                    if DEBUG: print(mat[0:5,0:7]); print(mat[-5:,0:7])
+                    if dataset=='train':
+                        mat = mat[:len_train, :]
+                        if DEBUG: print(mat.shape, np.sum(mat))
+                        if DEBUG: print('train: ', print(mat[0:5,0:7]))
+                    else:
+                        mat = mat[len_train:, :]
+                        print(mat.shape, np.sum(mat))
+                        if DEBUG: print(mat.shape, np.sum(mat))
+                        if DEBUG: print('test: ', print(mat[-5:,0:7]))
+                    print(mat)                
+                    print('merging...')                                       
+                    save_file(mat, savename, '.pickle')                    
+                    print_memory()  
+
+            else:  
+                print(file)
+                filename = file
+                print ('\n>> doing', filename)
+                df = load_pickle(filename)
+                print_doing('extract')
+                if DEBUG: print(df.head()); print(df.tail())
+                if dataset=='train':
+                    df = df.iloc[:len_train]
+                    if DEBUG: print('train: ', df.head())
+                else:
+                    df = df.iloc[len_train:]                        
+                    if DEBUG: print('test: ', df.tail())
+                print('merging...')
+                add_dataset_to_hdf5(storename, df)
+                print_memory() 
 
 def read_dataset(is_merged):                   
     debug = DEBUG

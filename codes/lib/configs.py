@@ -90,3 +90,21 @@ DATATYPE_LIST = {
     'date_to'           : 'str',
     'deal_probability'  : 'float'
 } 
+
+# TRANSLATE_LIST = {
+#     'parent_category_name' : 'parent_category_name_en',
+#     'category_name'     :   'category_name_en',
+#     'param_1'           : 'param_1_en',
+#     'param_2'           : 'param_2_en',
+#     'param_3'           : 'param_3_en',
+#     'title'             : 'title_en',
+#     'description'       : 'description_en',     
+# }
+
+TRANSLATE_LIST = {
+    'param_1'           : 'param_1_en',
+    'param_2'           : 'param_2_en',
+    'param_3'           : 'param_3_en',
+    'title'             : 'title_en',
+    'description'       : 'description_en',     
+}

@@ -1,8 +1,10 @@
 import os, sys, inspect
 import pandas as pd
 import gc
+import numpy as np
 from .read_write_file import save_file, load_file
-from .configs import NAMEMAP_DICT
+from .configs import NAMEMAP_DICT, TRANSLATE_LIST
+from .print_info import print_memory
 
 # Tf-Idf
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
@@ -104,17 +106,60 @@ def measure_length(df, selcols, todir, ext):
 def get_col(col): 
     return lambda x: x[col]
 
-def create_text_feature (df, todir, ext):
+def get_original_data(df, selcols):
+    for col in selcols:
+        df[col] = df[col].replace({'0':np.nan, 0:np.nan})
+    return df        
+
+def remove_english(df):
+    feature_list = list(df.keys())
+    for feature in feature_list:
+        if feature not in list(TRANSLATE_LIST.keys()):
+            df = df.drop([feature], axis=1)
+    return df
+
+def remove_russian(df):
+    feature_list = list(df.keys())
+    for feature in feature_list:
+        if feature not in list(TRANSLATE_LIST.values()):
+            df = df.drop([feature], axis=1)
+    return df           
+
+def rename_en_to_ru(df):
+    TRANSLATE_LIST_SWITCHED = {y:x for x,y in TRANSLATE_LIST.items()}
+    df.columns = df.columns.to_series().map(TRANSLATE_LIST_SWITCHED)  
+    return df  
+
+def create_text_feature (df, todir, ext, language):
     print('\n>> doing Text Features')
-    filename = todir + 'text_feature_kernel' + ext
+    if language == 'russian':
+        df = remove_english(df)
+    else:
+        df = remove_russian(df)
+        df = rename_en_to_ru(df)
+
+    if language == 'russian':
+        filename = todir + 'text_feature_kernel' + ext
+        filename_len = todir + 'len_feature_kernel' + ext  
+        suffix_feature = ''
+    else:
+        filename = todir + 'text_feature_kernel_en' + ext   
+        filename_len = todir + 'len_feature_kernel_en' + ext     
+        suffix_feature = '_en'
+
     if os.path.exists(filename):
         print ('done already...')
-        gp = load_file(filename, ext)
+        df = load_file(filename_len, ext)
+        ready_df = load_file(filename, ext)
     else:
+        df = get_original_data(df, ['param_1', 'param_2', 
+                'param_3', 'description', 'title'])              
+
         df['text_feat'] = df.apply(lambda row: ' '.join([
             str(row['param_1']), 
             str(row['param_2']), 
             str(row['param_3'])]),axis=1) # Group Param Features
+
         print (df[['text_feat', 'param_1', 'param_2', 'param_3']].head())
         print (df[['text_feat', 'param_1', 'param_2', 'param_3']].tail())
         df.drop(["param_1","param_2","param_3"],axis=1,inplace=True)        
@@ -123,14 +168,18 @@ def create_text_feature (df, todir, ext):
             df[cols] = df[cols].astype(str) 
             df[cols] = df[cols].astype(str).fillna('n/a') # FILL NA
             df[cols] = df[cols].str.lower() # Lowercase all text, so that capitalized words dont get treated differently
-            df[cols + '_num_chars'] = df[cols].apply(len) # Count number of Characters
-            df[cols + '_num_words'] = df[cols].apply(lambda comment: len(comment.split())) # Count number of Words
-            df[cols + '_num_unique_words'] = df[cols].apply(lambda comment: len(set(w for w in comment.split())))
-            df[cols + '_words_vs_unique'] = df[cols+'_num_unique_words'] / df[cols+'_num_words'] * 100 # Count Unique Words
+            df[cols + '_num_chars' + suffix_feature] = df[cols].apply(len) # Count number of Characters
+            df[cols + '_num_words' + suffix_feature] = df[cols].apply(lambda comment: len(comment.split())) # Count number of Words
+            df[cols + '_num_unique_words' + suffix_feature] = df[cols].apply(lambda comment: len(set(w for w in comment.split())))
+            df[cols + '_words_vs_unique' + suffix_feature] =   \
+                    df[cols+'_num_unique_words'+ suffix_feature] /   \
+                    df[cols+'_num_words'+ suffix_feature] * 100 # Count Unique Words
+        print_memory()
+
         print("\n[TF-IDF] Term Frequency Inverse Document Frequency Stage")
-        russian_stop = set(stopwords.words('russian'))   
+        language_stop = set(stopwords.words(language))   
         tfidf_para = {
-            "stop_words": russian_stop,
+            "stop_words": language_stop,
             "analyzer": 'word',
             "token_pattern": r'\w{1,}',
             "sublinear_tf": True,
@@ -160,12 +209,25 @@ def create_text_feature (df, todir, ext):
         vectorizer.fit(df.to_dict('records'))
         ready_df = vectorizer.transform(df.to_dict('records'))
         tfvocab = vectorizer.get_feature_names() 
+        print_memory()
+
+        # Drop Text Cols
+        df.drop(textfeats, axis=1,inplace=True)
 
         print("Modeling Stage")
         # Combine Dense Features with Sparse Text Bag of Words Features
+        # ready_df = ready_df.astype(np.float32)
+
         X = hstack([csr_matrix(df.values),ready_df])
         tfvocab = df.columns.tolist() + tfvocab
         for shape in [X]:
             print("{} Rows and {} Cols".format(*shape.shape))
         print("Feature Names Length: ",len(tfvocab))
-        del df; gc.collect()
+        print_memory()
+        
+        print(df.head())
+        print(ready_df[0:5,:])
+                      
+        save_file(df, filename_len, ext)
+        save_file(ready_df, filename, ext)
+    return df, ready_df        

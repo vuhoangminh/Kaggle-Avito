@@ -8,14 +8,7 @@ import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import os
 import gc
-
-cwd = os.getcwd()
-print ('working dir', cwd)
-if 'codes' not in cwd:
-    default_path = cwd + '/codes/'
-    os.chdir(default_path)
-
-# print("Data:\n",os.listdir("../input"))
+print("Data:\n",os.listdir("../input"))
 
 # Models Packages
 from sklearn import metrics
@@ -43,9 +36,9 @@ import matplotlib.pyplot as plt
 SEED = 1988
 
 print("\nData Load Stage")
-training = pd.read_csv('../input/train.csv', index_col = "item_id", parse_dates = ["activation_date"], nrows=1000)
+training = pd.read_csv('../input/train.csv', index_col = "item_id", parse_dates = ["activation_date"])
 traindex = training.index
-testing = pd.read_csv('../input/test.csv', index_col = "item_id", parse_dates = ["activation_date"], nrows=1000)
+testing = pd.read_csv('../input/test.csv', index_col = "item_id", parse_dates = ["activation_date"])
 testdex = testing.index
 y = training.deal_probability.copy()
 training.drop("deal_probability",axis=1, inplace=True)
@@ -84,21 +77,11 @@ for col in categorical:
     
 print("\nText Features")
 
-
-
-
-
 # Feature Engineering 
 df['text_feat'] = df.apply(lambda row: ' '.join([
     str(row['param_1']), 
     str(row['param_2']), 
     str(row['param_3'])]),axis=1) # Group Param Features
-
-print (df[['text_feat', 'param_1', 'param_2', 'param_3']].head())
-print (df[['text_feat', 'param_1', 'param_2', 'param_3']].tail())
-
-
-
 df.drop(["param_1","param_2","param_3"],axis=1,inplace=True)
 
 # Meta Text Features
@@ -143,9 +126,7 @@ vectorizer = FeatureUnion([
             #max_features=7000,
             preprocessor=get_col('title')))
     ])
-
-print(df.info())
-
+    
 start_vect=time.time()
 vectorizer.fit(df.loc[traindex,:].to_dict('records'))
 ready_df = vectorizer.transform(df.to_dict('records'))
@@ -164,10 +145,6 @@ plt.savefig('correlation_matrix.png')
 
 print("Modeling Stage")
 # Combine Dense Features with Sparse Text Bag of Words Features
-
-print(df.info())
-# print(ready_df.info())
-
 X = hstack([csr_matrix(df.loc[traindex,:].values),ready_df[0:traindex.shape[0]]]) # Sparse Matrix
 testing = hstack([csr_matrix(df.loc[testdex,:].values),ready_df[traindex.shape[0]:]])
 tfvocab = df.columns.tolist() + tfvocab

@@ -56,19 +56,20 @@ def main():
     else:
         todir = '../processed_features/'
 
-    # gen_time_feature(df, todir, '.pickle')
-    # gen_len_title_description_feature(df, todir, '.pickle')
-    # gen_mean_deal_probability (df, todir, '.pickle')
-    gen_text_feature_from_kernel (df, todir, '.pickle')
+    gen_time_feature(df, todir, '.pickle')
+    gen_len_title_description_feature(df, todir, '.pickle')
+    gen_mean_deal_probability (df, todir, '.pickle')
+    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian')
 
+    ## after translated!!
+    gen_text_feature_from_kernel (df, todir, '.pickle', 'english')
 
-def gen_text_feature_from_kernel(df, todir, ext):
-    create_text_feature (df, todir, ext)
+def gen_text_feature_from_kernel(df, todir, ext, language):
+    create_text_feature (df, todir, ext, language)
     # if DEBUG: print(df['activation_date'].head()), print (gp.head())
     # del gp; gc.collect()
     # print_memory()    
     
-
 def gen_time_feature(df, todir, ext):
     gp = create_time(df, todir=todir, ext = ext)
     if DEBUG: print(df['activation_date'].head()), print (gp.head())

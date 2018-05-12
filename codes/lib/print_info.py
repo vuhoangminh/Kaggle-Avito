@@ -13,7 +13,8 @@ def print_debug(debug):
         print('=======================================================================')
 
 def print_memory(print_string=''):
-    print('Total memory in use ' + print_string + ': ', round(process.memory_info().rss/(2**30),2), ' GB')
+    print('Total memory in use ' + print_string + ': ', 
+            round(process.memory_info().rss/(2**30),2), ' GB\n')
 
 def print_doing(str):
     print('>>', str)    
