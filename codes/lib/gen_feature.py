@@ -4,6 +4,14 @@ import gc
 from .read_write_file import save_file, load_file
 from .configs import NAMEMAP_DICT
 
+# Tf-Idf
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.pipeline import FeatureUnion
+from scipy.sparse import hstack, csr_matrix
+from nltk.corpus import stopwords 
+import nltk
+nltk.download('stopwords')
+
 # NAMEMAP_DICT = configs.NAMEMAP_DICT 
 
 def map_key(key):
@@ -92,3 +100,72 @@ def measure_length(df, selcols, todir, ext):
         # print('>> saving to', filename)
         save_file(df=gp, filename=filename, ext=ext)  
     return gp.astype('int')
+
+def get_col(col): 
+    return lambda x: x[col]
+
+def create_text_feature (df, todir, ext):
+    print('\n>> doing Text Features')
+    filename = todir + 'text_feature_kernel' + ext
+    if os.path.exists(filename):
+        print ('done already...')
+        gp = load_file(filename, ext)
+    else:
+        df['text_feat'] = df.apply(lambda row: ' '.join([
+            str(row['param_1']), 
+            str(row['param_2']), 
+            str(row['param_3'])]),axis=1) # Group Param Features
+        print (df[['text_feat', 'param_1', 'param_2', 'param_3']].head())
+        print (df[['text_feat', 'param_1', 'param_2', 'param_3']].tail())
+        df.drop(["param_1","param_2","param_3"],axis=1,inplace=True)        
+        textfeats = ["description","text_feat", "title"]
+        for cols in textfeats:
+            df[cols] = df[cols].astype(str) 
+            df[cols] = df[cols].astype(str).fillna('n/a') # FILL NA
+            df[cols] = df[cols].str.lower() # Lowercase all text, so that capitalized words dont get treated differently
+            df[cols + '_num_chars'] = df[cols].apply(len) # Count number of Characters
+            df[cols + '_num_words'] = df[cols].apply(lambda comment: len(comment.split())) # Count number of Words
+            df[cols + '_num_unique_words'] = df[cols].apply(lambda comment: len(set(w for w in comment.split())))
+            df[cols + '_words_vs_unique'] = df[cols+'_num_unique_words'] / df[cols+'_num_words'] * 100 # Count Unique Words
+        print("\n[TF-IDF] Term Frequency Inverse Document Frequency Stage")
+        russian_stop = set(stopwords.words('russian'))   
+        tfidf_para = {
+            "stop_words": russian_stop,
+            "analyzer": 'word',
+            "token_pattern": r'\w{1,}',
+            "sublinear_tf": True,
+            "dtype": np.float32,
+            "norm": 'l2',
+            #"min_df":5,
+            #"max_df":.9,
+            "smooth_idf":False
+        }
+        vectorizer = FeatureUnion([
+                ('description',TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    max_features=18000,
+                    **tfidf_para,
+                    preprocessor=get_col('description'))),
+                ('text_feat',CountVectorizer(
+                    ngram_range=(1, 2),
+                    #max_features=7000,
+                    preprocessor=get_col('text_feat'))),
+                ('title',TfidfVectorizer(
+                    ngram_range=(1, 2),
+                    **tfidf_para,
+                    #max_features=7000,
+                    preprocessor=get_col('title')))
+            ])   
+
+        vectorizer.fit(df.to_dict('records'))
+        ready_df = vectorizer.transform(df.to_dict('records'))
+        tfvocab = vectorizer.get_feature_names() 
+
+        print("Modeling Stage")
+        # Combine Dense Features with Sparse Text Bag of Words Features
+        X = hstack([csr_matrix(df.values),ready_df])
+        tfvocab = df.columns.tolist() + tfvocab
+        for shape in [X]:
+            print("{} Rows and {} Cols".format(*shape.shape))
+        print("Feature Names Length: ",len(tfvocab))
+        del df; gc.collect()

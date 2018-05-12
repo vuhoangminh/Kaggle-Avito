@@ -31,6 +31,8 @@ from lib.prep_hdf5 import get_datatype, get_info_key_hdf5, add_dataset_to_hdf5
 import lib.configs as configs
 import features_list
 
+from sklearn import preprocessing
+
 SEED = 1988
 
 now = datetime.datetime.now()
@@ -46,32 +48,20 @@ yearmonthdate_string = str(now.year) + month_string + day_string
 
 boosting_type = 'gbdt'
 TARGET = ['deal_probability']
-PREDICTORS18 = [
-    # core 9
-    'app', 'os', 'device', 'channel', 'hour',
-    'ip_os_device_app_nextclick',
-    'ip_device_os_nunique_app',
-    'ip_nunique_channel',
-    'ip_nunique_app', 
-    # add
-    'ip_nunique_device',
-    'ip_cumcount_os',
-    'ip_device_os_nextclick',
-    'ip_os_device_channel_app_nextclick',
-    'ip_app_os_count_channel',
-    'ip_count_app',
-    'app_count_channel',
-    'ip_device_os_nunique_channel',
-    'ip_nextclick',
-    'ip_channel_nextclick'
-    ]	
 	
 CATEGORICAL = [
     'item_id', 'user_id', 'region', 'city', 'parent_category_name',
     'category_name', 'param_1', 'param_2', 'param_3', 'title',
-    'description', 'activation_date', 'user_type', 'image', 'image_top_1'
+    'description', 'activation_date', 'user_type', 'image', 'image_top_1',
+    'day', 'week', 'weekday'
 ]
 
+REMOVED_LIST = [
+    'title', 'description', 'param_1', 'param_2', 'param_3', 
+    'price', 'image', 'image_top_1', 'activation_date', 'deal_probability',
+    'uid_cn_mean_dp', 'uid_mean_dp', 'uid_pcn_cn_mean_dp', 'uid_pcn_mean_dp',
+    'item_id', 'user_id'
+]
 
 cwd = os.getcwd()
 print ('working dir', cwd)
@@ -99,13 +89,17 @@ def main():
         storename = '../processed_features/{}.h5'.format('train')
     PREDICTORS = get_predictors(storename)
     
-    DO(storename,9,4,1)
+    DO(storename,7,3,1)
 
 
 def get_predictors(storename):
     with h5py.File(storename,'r') as hf:
         feature_list = list(hf.keys())
-    return feature_list
+    predictors = []
+    for feature in feature_list:
+        if '_en' not in feature and feature not in REMOVED_LIST:
+            predictors = predictors + [feature]
+    return predictors
 
 
 def get_categorical(predictors):
@@ -126,9 +120,11 @@ def read_processed_h5(filename, predictors):
     train_df = pd.DataFrame()
     t0 = time.time()
     for feature in feature_list:
-        if feature!='dump_later' and feature in predictors:
+        if feature in predictors:
             print('>> adding', feature)
-            train_df[feature] = pd.read_hdf(filename, key=feature)                                                                                         
+            train_df[feature] = pd.read_hdf(filename, key=feature)  
+            if feature in CATEGORICAL:
+                train_df[feature] = train_df[feature].astype('category')                                                                                                       
             print_memory()
     t1 = time.time()
     total = t1-t0
@@ -167,6 +163,11 @@ def DO(storename,num_leaves,max_depth, option):
 
     print('----------------------------------------------------------')
     train_df = read_processed_h5(storename, predictors+target)
+
+    lbl = preprocessing.LabelEncoder()
+    for col in categorical:
+        train_df[col] = lbl.fit_transform(train_df[col].astype(str))
+
     if DEBUG: print(train_df.head()); print(train_df.info())
     train_df = train_df.sample(frac=frac, random_state = SEED)
     print_memory('afer reading train:')
@@ -180,14 +181,14 @@ def DO(storename,num_leaves,max_depth, option):
 
     params = {
         'boosting_type': boosting_type,
-        'objective': 'binary',
-        'metric': 'auc',
-        'learning_rate': 0.2,
+        'objective': 'regression',
+        'metric': 'rmse',
+        'learning_rate': 0.01,
         'num_leaves': num_leaves,  # we should let it be smaller than 2^(max_depth)
         'max_depth': max_depth,  # -1 means no limit
         'min_data_in_leaf': 16,  # Minimum number of data need in a child(min_data_in_leaf)
-        'max_bin': 64,  # Number of bucketed bin for feature values
-        'subsample': 0.5,  # Subsample ratio of the training instance.
+        'max_bin': 100,  # Number of bucketed bin for feature values
+        'subsample': 0.9,  # Subsample ratio of the training instance.
         'subsample_freq': 1,  # frequence of subsample, <=0 means no enable
         'feature_fraction': 0.9,  # Subsample ratio of columns when constructing each tree.
         'min_child_weight': 0,  # Minimum sum of instance weight(hessian) needed in a child(leaf)
@@ -196,8 +197,7 @@ def DO(storename,num_leaves,max_depth, option):
         'reg_alpha': 10,  # L1 regularization term on weights
         'reg_lambda': 0,  # L2 regularization term on weights
         'nthread': 4,
-        'verbose': 0,
-        'scale_pos_weight': 200, # because training data is extremely unbalanced
+        'verbose': 0
     }
     print ('params:', params)
 
@@ -216,18 +216,17 @@ def DO(storename,num_leaves,max_depth, option):
     
     print('>> start cv...')
 
-
     cv_results  = lgb.cv(params, 
                         dtrain_lgb, 
                         categorical_feature = categorical,
-                        num_boost_round=1000,                       
-                        metrics='auc',
+                        num_boost_round=3000,                       
+                        metrics='rmse',
                         seed = SEED,
                         shuffle = False,
                         # stratified=True, 
-                        nfold=5, 
+                        nfold=10, 
                         show_stdv=True,
-                        early_stopping_rounds=30, 
+                        early_stopping_rounds=50, 
                         verbose_eval=True)                     
 
 
@@ -237,7 +236,7 @@ def DO(storename,num_leaves,max_depth, option):
 
     # print (cv_results)
     print('--------------------------------------------------------------------') 
-    num_boost_rounds_lgb = len(cv_results['auc-mean'])
+    num_boost_rounds_lgb = len(cv_results['rmse-mean'])
     print('num_boost_rounds_lgb=' + str(num_boost_rounds_lgb))
 
     print ('>> start trainning... ')

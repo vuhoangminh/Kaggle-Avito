@@ -32,4 +32,21 @@ def translate_textblob():
     file.write(str) 
     print (str)         
 
-translate_textblob()    
+def run_gen_fea_prepare_hdf5():
+    str = ''
+    for debug in [2,1,0]:
+        temp_gen_fea = 'python -u generate_feature.py -b {}'.format(debug)
+        str = str + temp_gen_fea + ' && '
+        temp_parepare_hdf5 = 'python -u prepare_hdf5.py -b {}'.format(debug)
+        if debug == 0:
+            str = str + temp_parepare_hdf5    
+        else:
+            str = str + temp_parepare_hdf5 + ' && '
+
+    file = open('bash.txt','w') 
+    file.write(str) 
+    print (str) 
+
+# translate_textblob()    
+
+run_gen_fea_prepare_hdf5()

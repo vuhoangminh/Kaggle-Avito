@@ -20,7 +20,10 @@ MINH_LIST_MEAN_DEAL_PROB =[
     ['city', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],          
     ['region', 'user_type', 'deal_probability'],
     ['region', 'user_type', 'parent_category_name', 'deal_probability'],
-    ['region', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],    
+    ['region', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],  
+    ['parent_category_name', 'deal_probability'],
+    ['parent_category_name', 'category_name', 'deal_probability'],
+    ['category_name', 'deal_probability'],      
 ]
 
 MINH_LIST_MEAN_PRICE = [

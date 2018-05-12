@@ -18,7 +18,7 @@ import nltk, textwrap
 from lib.print_info import print_debug, print_doing, print_memory
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
-from lib.gen_feature import generate_groupby_by_type_and_columns, create_time, measure_length, map_key
+from lib.gen_feature import generate_groupby_by_type_and_columns, create_time, measure_length, map_key, create_text_feature
 import lib.configs as configs
 import features_list
 
@@ -56,10 +56,18 @@ def main():
     else:
         todir = '../processed_features/'
 
-    gen_time_feature(df, todir, '.pickle')
-    gen_len_title_description_feature(df, todir, '.pickle')
-    gen_mean_deal_probability (df, todir, '.pickle')
+    # gen_time_feature(df, todir, '.pickle')
+    # gen_len_title_description_feature(df, todir, '.pickle')
+    # gen_mean_deal_probability (df, todir, '.pickle')
+    gen_text_feature_from_kernel (df, todir, '.pickle')
 
+
+def gen_text_feature_from_kernel(df, todir, ext):
+    create_text_feature (df, todir, ext)
+    # if DEBUG: print(df['activation_date'].head()), print (gp.head())
+    # del gp; gc.collect()
+    # print_memory()    
+    
 
 def gen_time_feature(df, todir, ext):
     gp = create_time(df, todir=todir, ext = ext)

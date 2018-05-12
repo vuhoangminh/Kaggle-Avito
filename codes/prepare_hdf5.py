@@ -43,9 +43,9 @@ def main():
     args = parser.parse_args()
     DEBUG = args.debug
     print_debug(DEBUG)
-
     for dataset in ['train', 'test']:
         do_dataset(dataset)
+    write_all_feature_to_text()        
          
 def do_dataset(dataset):
     train_df, test_df = read_dataset(False)
@@ -84,8 +84,6 @@ def do_dataset(dataset):
         add_dataset_to_hdf5(storename, df)
         print_memory() 
 
-
-
 def read_dataset(is_merged):                   
     debug = DEBUG
     if debug:
@@ -110,6 +108,16 @@ def read_dataset(is_merged):
     else:
         return train_df, test_df                
 
+def write_all_feature_to_text():
+    if DEBUG:
+        storename = '../processed_features_debug{}/{}_debug{}.h5'.format(DEBUG, 'train', DEBUG)
+    else:
+        storename = '../processed_features/{}.h5'.format('train')
+    with h5py.File(storename,'r') as hf:
+        feature_list = list(hf.keys())
+    filename = open('list_all_feature.txt', 'w')
+    for item in feature_list:
+        filename.write("%s\n" % item)
 
 
 if __name__ == '__main__':
