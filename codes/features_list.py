@@ -81,10 +81,10 @@ PREDICTORS = [
     'reg_uty_mean_dp',
     'reg_uty_pcn_cn_mean_dp',
     'reg_uty_pcn_mean_dp',
-    'uid_cn_mean_dp',
-    'uid_mean_dp',
-    'uid_pcn_cn_mean_dp',
-    'uid_pcn_mean_dp',
+    # 'uid_cn_mean_dp',
+    # 'uid_mean_dp',
+    # 'uid_pcn_cn_mean_dp',
+    # 'uid_pcn_mean_dp',
     'uty_cn_mean_dp',
     'uty_mean_dp',
     'uty_pcn_cn_mean_dp',
@@ -96,53 +96,111 @@ MINH_LIST_MEAN_DEAL_PROB =[
     ['user_id', 'parent_category_name', 'deal_probability'],
     ['user_id', 'parent_category_name', 'category_name', 'deal_probability'],
     ['user_id', 'category_name', 'deal_probability'],
+
     ['user_type', 'deal_probability'],
     ['user_type', 'parent_category_name', 'deal_probability'],
     ['user_type', 'parent_category_name', 'category_name', 'deal_probability'],
     ['user_type', 'category_name', 'deal_probability'],
-    ['region', 'deal_probability'],
-    ['city', 'deal_probability'],
-    ['region', 'deal_probability'],
+
+    ['region', 'deal_probability'],    
     ['region', 'parent_category_name', 'deal_probability'],
     ['region', 'parent_category_name', 'category_name', 'deal_probability'],  
+    ['region', 'user_type', 'deal_probability'],
+    ['region', 'user_type', 'parent_category_name', 'deal_probability'],
+    ['region', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],  
+
     ['city', 'deal_probability'],
     ['city', 'parent_category_name', 'deal_probability'],
     ['city', 'parent_category_name', 'category_name', 'deal_probability'], 
     ['city', 'user_type', 'deal_probability'],
     ['city', 'user_type', 'parent_category_name', 'deal_probability'],
     ['city', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],          
-    ['region', 'user_type', 'deal_probability'],
-    ['region', 'user_type', 'parent_category_name', 'deal_probability'],
-    ['region', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],  
+
     ['parent_category_name', 'deal_probability'],
     ['parent_category_name', 'category_name', 'deal_probability'],
     ['category_name', 'deal_probability'],      
 ]
 
-MINH_LIST_MEAN_PRICE = [
-    ['user_id', 'deal_probability'],
-    ['user_id', 'parent_category_name', 'deal_probability'],
-    ['user_id', 'parent_category_name', 'category_name', 'deal_probability'],
-    ['user_id', 'category_name', 'deal_probability'],
+MINH_LIST_MEAN_PRICE =[
+    ['user_id', 'price'],
+    ['user_id', 'parent_category_name', 'price'],
+    ['user_id', 'parent_category_name', 'category_name', 'price'],
+    ['user_id', 'category_name', 'price'],
+
+    ['user_type', 'price'],
+    ['user_type', 'parent_category_name', 'price'],
+    ['user_type', 'parent_category_name', 'category_name', 'price'],
+    ['user_type', 'category_name', 'price'],
+
+    ['region', 'price'],    
+    ['region', 'parent_category_name', 'price'],
+    ['region', 'parent_category_name', 'category_name', 'price'],  
+    ['region', 'user_type', 'price'],
+    ['region', 'user_type', 'parent_category_name', 'price'],
+    ['region', 'user_type', 'parent_category_name', 'category_name', 'price'],  
+
+    ['city', 'price'],
+    ['city', 'parent_category_name', 'price'],
+    ['city', 'parent_category_name', 'category_name', 'price'], 
+    ['city', 'user_type', 'price'],
+    ['city', 'user_type', 'parent_category_name', 'price'],
+    ['city', 'user_type', 'parent_category_name', 'category_name', 'price'],          
+
+    ['parent_category_name', 'price'],
+    ['parent_category_name', 'category_name', 'price'],
+    ['category_name', 'price'],      
+]
+
+MINH_LIST_VAR_DEAL_PROB =[
     ['user_type', 'deal_probability'],
     ['user_type', 'parent_category_name', 'deal_probability'],
     ['user_type', 'parent_category_name', 'category_name', 'deal_probability'],
     ['user_type', 'category_name', 'deal_probability'],
-    ['region', 'deal_probability'],
-    ['city', 'deal_probability'],
-    ['region', 'deal_probability'],
+
+    ['region', 'deal_probability'],    
     ['region', 'parent_category_name', 'deal_probability'],
     ['region', 'parent_category_name', 'category_name', 'deal_probability'],  
+    ['region', 'user_type', 'deal_probability'],
+    ['region', 'user_type', 'parent_category_name', 'deal_probability'],
+    ['region', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],  
+
     ['city', 'deal_probability'],
     ['city', 'parent_category_name', 'deal_probability'],
     ['city', 'parent_category_name', 'category_name', 'deal_probability'], 
     ['city', 'user_type', 'deal_probability'],
     ['city', 'user_type', 'parent_category_name', 'deal_probability'],
     ['city', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],          
-    ['region', 'user_type', 'deal_probability'],
-    ['region', 'user_type', 'parent_category_name', 'deal_probability'],
-    ['region', 'user_type', 'parent_category_name', 'category_name', 'deal_probability'],     
+
+    ['parent_category_name', 'deal_probability'],
+    ['parent_category_name', 'category_name', 'deal_probability'],
+    ['category_name', 'deal_probability'],      
 ]
+
+MINH_LIST_VAR_PRICE =[
+    ['user_type', 'price'],
+    ['user_type', 'parent_category_name', 'price'],
+    ['user_type', 'parent_category_name', 'category_name', 'price'],
+    ['user_type', 'category_name', 'price'],
+
+    ['region', 'price'],    
+    ['region', 'parent_category_name', 'price'],
+    ['region', 'parent_category_name', 'category_name', 'price'],  
+    ['region', 'user_type', 'price'],
+    ['region', 'user_type', 'parent_category_name', 'price'],
+    ['region', 'user_type', 'parent_category_name', 'category_name', 'price'],  
+
+    ['city', 'price'],
+    ['city', 'parent_category_name', 'price'],
+    ['city', 'parent_category_name', 'category_name', 'price'], 
+    ['city', 'user_type', 'price'],
+    ['city', 'user_type', 'parent_category_name', 'price'],
+    ['city', 'user_type', 'parent_category_name', 'category_name', 'price'],          
+
+    ['parent_category_name', 'price'],
+    ['parent_category_name', 'category_name', 'price'],
+    ['category_name', 'price'],      
+]
+
 
 MINH_LIST_COUNT =[
     ['city', 'category_name'],

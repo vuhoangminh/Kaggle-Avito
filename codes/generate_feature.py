@@ -26,6 +26,9 @@ SEED = configs.SEED
 DATATYPE_DICT = configs.DATATYPE_DICT
 NAMEMAP_DICT = configs.NAMEMAP_DICT
 MINH_LIST_MEAN_DEAL_PROB = features_list.MINH_LIST_MEAN_DEAL_PROB
+MINH_LIST_MEAN_PRICE = features_list.MINH_LIST_MEAN_PRICE
+MINH_LIST_VAR_DEAL_PROB = features_list.MINH_LIST_VAR_DEAL_PROB
+MINH_LIST_VAR_PRICE = features_list.MINH_LIST_VAR_PRICE
 
 cwd = os.getcwd()
 print ('working dir', cwd)
@@ -60,6 +63,10 @@ def main():
     gen_time_feature(df, todir, '.pickle')
     # gen_len_title_description_feature(df, todir, '.pickle')
     gen_mean_deal_probability (df, todir, '.pickle')
+    gen_mean_price (df, todir, '.pickle')
+    gen_var_deal_probability (df, todir, '.pickle')
+    gen_var_price (df, todir, '.pickle')
+
     gen_text_feature_from_kernel (df, todir, '.pickle', 'russian')
 
     ## after translated!!
@@ -94,6 +101,28 @@ def gen_mean_deal_probability (df, todir, ext):
         if DEBUG: print(df[selcols].head()), print (gp.head())
         del gp; gc.collect()    
         print_memory()
+
+def gen_mean_price (df, todir, ext):
+    for selcols in MINH_LIST_MEAN_PRICE:
+        gp = generate_groupby_by_type_and_columns(df, selcols, 'mean', todir, ext)
+        if DEBUG: print(df[selcols].head()), print (gp.head())
+        del gp; gc.collect()    
+        print_memory()
+
+def gen_var_deal_probability (df, todir, ext):
+    for selcols in MINH_LIST_VAR_DEAL_PROB:
+        gp = generate_groupby_by_type_and_columns(df, selcols, 'var', todir, ext)
+        if DEBUG: print(df[selcols].head()), print (gp.head())
+        del gp; gc.collect()    
+        print_memory()
+
+def gen_var_price (df, todir, ext):
+    for selcols in MINH_LIST_VAR_PRICE:
+        gp = generate_groupby_by_type_and_columns(df, selcols, 'var', todir, ext)
+        if DEBUG: print(df[selcols].head()), print (gp.head())
+        del gp; gc.collect()    
+        print_memory()
+
 
 def read_dataset(dataset):                   
     debug = DEBUG

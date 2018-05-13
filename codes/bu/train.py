@@ -31,7 +31,7 @@ from lib.print_info import print_debug, print_doing, print_memory
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
 from lib.prep_hdf5 import get_datatype, get_info_key_hdf5, add_dataset_to_hdf5
-from lib.prepare_training import get_text_matrix, read_processed_h5, read_dataset
+from lib.prepare_training import get_text_matrix, read_processed_h5, read_dataset, drop_col, load_train_test, add_feature
 import lib.configs as configs
 import features_list
 from features_list import PREDICTORS
@@ -81,8 +81,8 @@ def main():
 
     target = TARGET
     
-    predictors = get_predictors()
-    categorical = get_categorical(predictors)
+    tabular_predictors = get_tabular_predictors()
+    # categorical = get_categorical(predictors)
 
     if DEBUG:
         mat_filename = '../processed_features_debug2/text_feature_kernel.pickle'
@@ -91,9 +91,60 @@ def main():
         mat_filename = '../processed_features/text_feature_kernel.pickle'
         dir_feature = '../processed_features/'
 
-    df, len_train, traindex, testdex = load_train_test()  
+    X, y, test, full_predictors, predictors = prepare_training(mat_filename, dir_feature, tabular_predictors)
+
+    categorical = get_categorical(predictors)
+    predictors = get_predictors(predictors)
+
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X, y, test_size=0.10, random_state=SEED)
+
+    print(X.shape)
+
+    print("Light Gradient Boosting Regressor")
+    lgbm_params =  {
+        'task': 'train',
+        'boosting_type': 'gbdt',
+        'objective': 'regression',
+        'metric': 'rmse',
+        'max_depth': 15,
+        # 'num_leaves': 31,
+        'feature_fraction': 0.7,
+        'bagging_fraction': 0.8,
+        # 'bagging_freq': 5,
+        'learning_rate': 0.019,
+        'verbose': 0
+    }  
+
+    print(lgbm_params)
+
+    # LGBM Dataset Formatting 
+    lgtrain = lgb.Dataset(X_train, y_train,
+                    feature_name=full_predictors,
+                    categorical_feature = categorical)
+    lgvalid = lgb.Dataset(X_valid, y_valid,
+                    feature_name=full_predictors,
+                    categorical_feature = categorical)
+
+    # Go Go Go
+    modelstart = time.time()
+    lgb_clf = lgb.train(
+        lgbm_params,
+        lgtrain,
+        num_boost_round=16000,
+        valid_sets=[lgtrain, lgvalid],
+        valid_names=['train','valid'],
+        early_stopping_rounds=200,
+        verbose_eval=200
+    )
+
+def prepare_training(mat_filename, dir_feature, predictors):
+    df, train_labels, len_train, traindex, testdex = load_train_test(['item_id'], TARGET, DEBUG)
     df = drop_col(df,REMOVED_LIST)
 
+    # add features
+    print_doing('---------------------------------------------------------------')
+    print_doing('add tabular fetures')
     for feature in predictors:
         dir_feature_file = dir_feature + feature + '.pickle'
         if not os.path.exists(dir_feature_file):
@@ -104,66 +155,41 @@ def main():
             else:   
                 print('\n>> adding {}'.format(feature))
                 df = add_feature(df, dir_feature_file)
-    
-    print(df.info())
-    print(df.head())
-    print(df.tail())
 
-def drop_col(df,cols):
-    for col in cols:
-        if col in df:
-            df = df.drop([col], axis=1)
-    return df
+    # add text_feature
+    print_doing('---------------------------------------------------------------')
+    print_doing('add text fetures')
+    ready_df, tfvocab = get_text_matrix(mat_filename, 'all', 2, 0)
 
-def load_train_test():
-    train_df, test_df = read_dataset(False, DEBUG)
-    len_train = len(train_df)
+    # add text_feature
+    print_doing('---------------------------------------------------------------')
+    print_doing('stack')   
+    X = hstack([csr_matrix(df.loc[traindex,:].values),ready_df[0:traindex.shape[0]]]) # Sparse Matrix
+    testing = hstack([csr_matrix(df.loc[testdex,:].values),ready_df[traindex.shape[0]:]])
 
-    train_df.set_index('item_id', inplace=True)
-    traindex = train_df.index
-    test_df.set_index('item_id', inplace=True)
-    testdex = test_df.index
-    
-    y = train_df.deal_probability.copy()
-    train_df.drop(TARGET, axis=1, inplace=True)
+    tfvocab = df.columns.tolist() + tfvocab
+    for shape in [X,testing]:
+        print("{} Rows and {} Cols".format(*shape.shape))
+    print("Feature Names Length: ",len(tfvocab))
+    # del df; gc.collect()  
 
-    print(train_df.info(), train_df.head())
-    print(test_df.info(), test_df.head())  
+    return X, train_labels, testing, tfvocab, df.columns.tolist()  
 
-    print('Train shape: {} Rows, {} Columns'.format(*train_df.shape))
-    print('Test shape: {} Rows, {} Columns'.format(*test_df.shape))
-
-    print("\nCombine Train and Test")
-    df = pd.concat([train_df,test_df],axis=0)
-    print(train_df.info())
-    print(test_df.info())
-    print(df.info())
-
-    del train_df, test_df; gc.collect()
-    print('\nAll Data shape: {} Rows, {} Columns'.format(*df.shape))    
-
-    return df, len_train, traindex, testdex
-
-def add_time(df, filename):
-    cols = ['day', 'week', 'weekday']
-    gp = load_pickle(filename)
-    for feature in cols:
-        df[feature] = gp[feature].values
-    return df
-
-def add_feature(df, filename):
-    gp = load_pickle(filename)
-    for feature in gp:
-        df[feature] = gp[feature].values
-    return df    
-
-def get_predictors():
+def get_tabular_predictors():
     predictors = PREDICTORS
+    print('------------------------------------------------')
+    print('load list:')
+    for feature in predictors:
+        print (feature)
+    print('-- number of predictors:', len(predictors))        
+    return predictors
+
+def get_predictors(predictors):
     print('------------------------------------------------')
     print('features:')
     for feature in predictors:
         print (feature)
-    print('-- number of predictors:', len(predictors))        
+    print('-- number of predictors:', len(predictors))       
     return predictors
 
 def get_categorical(predictors):

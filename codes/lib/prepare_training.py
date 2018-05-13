@@ -1,7 +1,7 @@
 import numpy as np
-import h5py, time
+import h5py, time, gc
 import pandas as pd
-import pickle
+import pickle, datetime
 from .read_write_file import load_pickle, read_train_test
 from .print_info import print_doing, print_memory
 
@@ -12,9 +12,6 @@ def get_text_matrix(filename, dataset, debug, len_train):
     # mat = mat.todense()
 
     if debug: print(mat.shape, np.sum(mat))
-    print_doing('extract')
-
-    if debug: print(mat[0:5,0:7]); print(mat[-5:,0:7])
     if dataset=='train':
         mat_ok = mat[0:len_train]
     elif dataset=='test':
@@ -61,6 +58,60 @@ def read_dataset(is_merged, debug):
         return df
     else:
         return train_df, test_df 
+
+def drop_col(df,cols):
+    for col in cols:
+        if col in df:
+            df = df.drop([col], axis=1)
+    return df
+
+def load_train_test(index_col, target, debug):
+    train_df, test_df = read_dataset(False, debug)
+    len_train = len(train_df)
+
+    train_df.set_index(index_col, inplace=True)
+    traindex = train_df.index
+    test_df.set_index(index_col, inplace=True)
+    testdex = test_df.index
+    
+    train_labels = train_df.deal_probability.copy()
+    train_df.drop(target, axis=1, inplace=True)
+
+    # print(train_df.info(), train_df.head())
+    # print(test_df.info(), test_df.head())  
+
+    print('Train shape: {} Rows, {} Columns'.format(*train_df.shape))
+    print('Test shape: {} Rows, {} Columns'.format(*test_df.shape))
+
+    print("\n>> combine Train and Test")
+    df = pd.concat([train_df,test_df],axis=0)
+    # print(train_df.info())
+    # print(test_df.info())
+    # print(df.info())
+
+    del train_df, test_df; gc.collect()
+    print('\n data shape: {} Rows, {} Columns'.format(*df.shape))    
+
+    return df, train_labels, len_train, traindex, testdex
+
+def add_feature(df, filename):
+    gp = load_pickle(filename)
+    for feature in gp:
+        df[feature] = gp[feature].values
+    return df    
+
+def get_string_time():
+    now = datetime.datetime.now()
+    if now.month<10:
+        month_string = '0'+str(now.month)
+    else:
+        month_string = str(now.month)
+    if now.day<10:
+        day_string = '0'+str(now.day)
+    else:
+        day_string = str(now.day)
+    yearmonthdate_string = str(now.year) + month_string + day_string
+    return yearmonthdate_string
 
 # def get_predictors(storename):
 #     # with h5py.File(storename,'r') as hf:
