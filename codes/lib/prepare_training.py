@@ -2,7 +2,7 @@ import numpy as np
 import h5py, time
 import pandas as pd
 import pickle
-from .read_write_file import load_pickle
+from .read_write_file import load_pickle, read_train_test
 from .print_info import print_doing, print_memory
 
 def get_text_matrix(filename, dataset, debug, len_train): 
@@ -32,14 +32,35 @@ def read_processed_h5(filename, predictors, categorical):
     for feature in feature_list:
         if feature in predictors:
             print('>> adding', feature)
-            train_df[feature] = pd.read_hdf(filename, key=feature)  
-            if feature in categorical:
-                train_df[feature] = train_df[feature].astype('int')                                                                                                       
+            train_df[feature] = pd.read_hdf(filename, key=feature)
             print_memory()
     t1 = time.time()
     total = t1-t0
     print('total reading time:', total)
     return train_df    
+
+def read_dataset(is_merged, debug):                   
+    if debug:
+        filename_train = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'train', debug)  
+        filename_test = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'test', debug)                                                                    
+    else:
+        filename_train = '../input/{}.feather'.format('train')  
+        filename_test = '../input/{}.feather'.format('test')  
+
+    print_doing('reading train, test and merge')  
+    if is_merged:  
+        df = read_train_test(filename_train, filename_test, '.feather', is_merged=True)
+        if debug: print(df.head())
+    else:
+        train_df, test_df = read_train_test(filename_train, filename_test, '.feather', is_merged=False)        
+        if debug: print(train_df.head()); print(test_df.head())
+    print_memory()
+    if is_merged:
+        return df
+    else:
+        return train_df, test_df 
 
 # def get_predictors(storename):
 #     # with h5py.File(storename,'r') as hf:

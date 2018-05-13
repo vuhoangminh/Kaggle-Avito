@@ -27,38 +27,18 @@ def add_dataset_to_hdf5(storename, df):
     for feature in usecols:
         key = '/' + feature
         print('\n>> doing', key)
+        temp = pd.DataFrame()
         if key in existing_key:
             print ('feature already added...')
+            temp[feature] = pd.read_hdf(storename, key=feature)                
         else:                    
             print ('add {} to {}'.format(feature, storename))  
-            temp = pd.DataFrame()
-            if feature in DATATYPE_LIST:
-                temp[feature] = df[feature].astype(DATATYPE_LIST[feature])
-            else:
-                temp[feature] = df[feature]  
-                                     
-
-            # if not os.path.exists(storename):
-            #     f = h5py.File(storename, 'w')
-            # # else:                
-            # with h5py.File(storename) as hf:
-            #     hf[feature] = temp         
-            #     # temp.to_hdf(storename, key=feature, mode='a')
-
-            # with h5py.File(storename) as f:
-            #     f[feature] = temp
-
+            temp[feature] = df[feature]  
             store = pd.HDFStore(storename) 
             store[feature] = temp
             store.close()
-
-
             get_info_key_hdf5(storename, key=feature)  
-
-
-
-# with h5py.File("some_path.h5") as f:
-#    f["data1"] = some_data
+    return temp            
 
 
 

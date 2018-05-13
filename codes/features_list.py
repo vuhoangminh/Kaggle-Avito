@@ -1,40 +1,69 @@
-PREDICTORS = [
-    'cn_encoded', 'cty_encoded', 'img1_encoded', 'pcn_encoded',
-    'reg_encoded', 'uid_encoded', 'uty_encoded',
+# PREDICTORS = [
+#     'cn_encoded', 'cty_encoded', 'img1_encoded', 'pcn_encoded',
+#     'reg_encoded', 'uid_encoded', 'uty_encoded',
 
-    # 'category_name', 'city', 'region', 'parent_category_name', 
-    # 'user_type', 'item_seq_number', 'image_top_1',
-    'day', 'week', 'weekday', 
-    # 'user_id', 
+#     # 'category_name', 'city', 'region', 'parent_category_name', 
+#     # 'user_type', 'item_seq_number', 'image_top_1',
+#     'day', 'week', 'weekday', 
+#     # 'user_id', 
     
-    'price',
+#     'price',
 
-    # kernel's
-    'description_num_chars',
-    # 'description_num_chars_en',
-    'description_num_unique_words',
-    # 'description_num_unique_words_en',
-    'description_num_words',
-    # 'description_num_words_en',
-    'description_words_vs_unique',
-    # 'description_words_vs_unique_en',
-    'text_feat_num_chars',
-    # 'text_feat_num_chars_en',
-    'text_feat_num_unique_words',
-    # 'text_feat_num_unique_words_en',
-    'text_feat_num_words',
-    # 'text_feat_num_words_en',
-    'text_feat_words_vs_unique',
-    # 'text_feat_words_vs_unique_en',
-    'title_num_chars',
-    # 'title_num_chars_en',
-    'title_num_unique_words',
-    # 'title_num_unique_words_en',
-    'title_num_words',
-    # 'title_num_words_en',
-    'title_words_vs_unique',
-    # 'title_words_vs_unique_en',
+#     # kernel's
+#     'description_num_chars',
+#     # 'description_num_chars_en',
+#     'description_num_unique_words',
+#     # 'description_num_unique_words_en',
+#     'description_num_words',
+#     # 'description_num_words_en',
+#     'description_words_vs_unique',
+#     # 'description_words_vs_unique_en',
+#     'text_feat_num_chars',
+#     # 'text_feat_num_chars_en',
+#     'text_feat_num_unique_words',
+#     # 'text_feat_num_unique_words_en',
+#     'text_feat_num_words',
+#     # 'text_feat_num_words_en',
+#     'text_feat_words_vs_unique',
+#     # 'text_feat_words_vs_unique_en',
+#     'title_num_chars',
+#     # 'title_num_chars_en',
+#     'title_num_unique_words',
+#     # 'title_num_unique_words_en',
+#     'title_num_words',
+#     # 'title_num_words_en',
+#     'title_words_vs_unique',
+#     # 'title_words_vs_unique_en',
 
+#     # minh's features
+#     'cn_mean_dp',
+#     'cty_mean_dp',
+#     'cty_pcn_cn_mean_dp',
+#     'cty_pcn_mean_dp',
+#     'cty_uty_mean_dp',
+#     'cty_uty_pcn_cn_mean_dp',
+#     'cty_uty_pcn_mean_dp',
+#     'pcn_cn_mean_dp',
+#     'pcn_mean_dp',
+#     # 'price',
+#     'reg_mean_dp',
+#     'reg_pcn_cn_mean_dp',
+#     'reg_pcn_mean_dp',
+#     'reg_uty_mean_dp',
+#     'reg_uty_pcn_cn_mean_dp',
+#     'reg_uty_pcn_mean_dp',
+#     'uid_cn_mean_dp',
+#     'uid_mean_dp',
+#     'uid_pcn_cn_mean_dp',
+#     'uid_pcn_mean_dp',
+#     'uty_cn_mean_dp',
+#     'uty_mean_dp',
+#     'uty_pcn_cn_mean_dp',
+#     'uty_pcn_mean_dp'
+# ]        
+
+PREDICTORS = [
+    'time', 'cat_encode', 'len_feature_kernel',
     # minh's features
     'cn_mean_dp',
     'cty_mean_dp',
@@ -60,8 +89,7 @@ PREDICTORS = [
     'uty_mean_dp',
     'uty_pcn_cn_mean_dp',
     'uty_pcn_mean_dp'
-]        
-
+] 
 
 MINH_LIST_MEAN_DEAL_PROB =[
     ['user_id', 'deal_probability'],

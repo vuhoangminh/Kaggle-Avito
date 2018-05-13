@@ -28,7 +28,7 @@ def generate_groupby_by_type_and_columns(df, selcols, apply_type, todir, ext):
     for i in range(len(selcols)-1):
         feature_name = feature_name + map_key(selcols[i]) + '_'
     feature_name = feature_name + apply_type + '_' + map_key(selcols[len(selcols)-1])
-    print('\n>>doing feature:', feature_name)
+    print('\n>> doing feature:', feature_name)
     
     filename = todir + feature_name + ext
 
@@ -88,7 +88,7 @@ def create_time(df, todir, ext):
     return gp              
 
 def measure_length(df, selcols, todir, ext):
-    print('\n>>extract len of', selcols)
+    print('\n>> extract len of', selcols)
     filename = todir + 'len_title_description' + ext
     if os.path.exists(filename):
         print ('done already...')
@@ -132,7 +132,7 @@ def rename_en_to_ru(df):
     return df  
 
 def create_text_feature (df, todir, ext, language):
-    print('\n>>doing Text Features')
+    print('\n>> doing Text Features')
     if language == 'russian':
         df = remove_english(df)
     else:
@@ -251,7 +251,7 @@ CATEGORICAL = [
 ]
 
 def create_label_encode(df, todir, ext):
-    print('>> create label encoding')
+    print('\n>> create label encoding')
     filename = todir + 'cat_encode' + ext
     if os.path.exists(filename):
         print ('done already...')
@@ -265,3 +265,18 @@ def create_label_encode(df, todir, ext):
                 gp[encoded_feature] = lbl.fit_transform(df[feature])
         save_file(df=gp, filename=filename, ext=ext)  
     return gp  
+
+def create_time(df, todir, ext):
+    print('\n>> extract time')
+    filename = todir + 'time' + ext
+    if os.path.exists(filename):
+        print ('done already...')
+        gp = load_file(filename, ext)
+    else:
+        gp = pd.DataFrame()
+        gp['week'] = pd.to_datetime(df.activation_date).dt.week.astype('uint8')
+        gp['weekday'] = pd.to_datetime(df.activation_date).dt.weekday.astype('uint8')
+        gp['day'] = pd.to_datetime(df.activation_date).dt.day.astype('uint8')
+        # print('\n >> saving to', filename)
+        save_file(df=gp, filename=filename, ext=ext)  
+    return gp      

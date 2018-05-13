@@ -1,6 +1,8 @@
 import matplotlib
 matplotlib.use('Agg')
 
+debug = 2
+
 import time
 notebookstart= time.time()
 
@@ -50,26 +52,25 @@ print("\nData Load Stage")
 
 target = ['deal_probability',]
 predictors = [
-          'activation_date',
-          'category_name',
-          'image',
-          'image_top_1',
-          'item_id',
-          'city',
-          'description',
-          'item_seq_number',
-          'param_1',
-          'param_2',
-          'param_3',
-          'parent_category_name',
-          'price',
-          'title',
-          'user_id',
-          'user_type',
-          'region',
+    'activation_date',
+    'category_name',
+    'image',
+    'image_top_1',
+    'item_id',
+    'city',
+    'description',
+    'item_seq_number',
+    'param_1',
+    'param_2',
+    'param_3',
+    'parent_category_name',
+    'price',
+    'title',
+    'user_id',
+    'user_type',
+    'region',
 ]
 categorical = []
-
 
 
 def read_from_h5(storename_train, storename_test, cols, categorical):
@@ -88,15 +89,20 @@ def read_from_h5(storename_train, storename_test, cols, categorical):
     return gp
     
 
+if debug:
+    storename_train = '../processed_features_debug{}/{}_debug{}.h5'.format(2, 'train', 2)
+    storename_test = '../processed_features_debug{}/{}_debug{}.h5'.format(2, 'test', 2)
+    mat_filename = '../processed_features_debug2/text_feature_kernel.pickle'
+else:
+    storename_train = '../processed_features/{}.h5'.format('train')
+    storename_test = '../processed_features/{}.h5'.format('test')  
+    mat_filename = '../processed_features/text_feature_kernel.pickle'
 
-
-storename_train = '../processed_features_debug{}/{}_debug{}.h5'.format(2, 'train', 2)
 training = read_processed_h5(storename_train, predictors+target, categorical)
 training.set_index('item_id', inplace=True)
 training['activation_date'] = pd.to_datetime(training['activation_date'])
 traindex = training.index
 
-storename_test = '../processed_features_debug{}/{}_debug{}.h5'.format(2, 'test', 2)
 testing = read_processed_h5(storename_test, predictors, categorical)
 testing.set_index('item_id', inplace=True)
 testing['activation_date'] = pd.to_datetime(testing['activation_date'])
@@ -152,6 +158,8 @@ cols = ['cn_encoded', 'cty_encoded', 'img1_encoded', 'pcn_encoded',
 
 gp = read_from_h5(storename_train, storename_test, cols, categorical)
 
+print(gp.info())
+
 df['user_id'] = gp['uid_encoded'].values.astype('int')
 df['region'] = gp['reg_encoded'].values.astype('int')
 df['city'] = gp['cty_encoded'].values.astype('int')
@@ -160,6 +168,7 @@ df['category_name'] = gp['cn_encoded'].values.astype('int')
 df['item_seq_number'] = gp['item_seq_number'].values
 df['user_type'] = gp['uty_encoded'].values.astype('int')
 df['image_top_1'] = gp['img1_encoded'].values.astype('int')
+
 
 print(df.info()); print(df.head())
 
@@ -188,7 +197,7 @@ for feature in cols:
 print(df.info()); print(df.head())
 del gp, cols; gc.collect
 
-mat_filename = '../processed_features_debug2/text_feature_kernel.pickle'
+
 
 ready_df, tfvocab = get_text_matrix(mat_filename, 'all', 2, 0)
 
@@ -196,13 +205,17 @@ print(ready_df.shape)
 print(ready_df)
 # print(tfvocab)
 
-df_array = df.values
+df = df.drop(['description','param_1','param_2','param_3','title'],axis=1)
+
+# df_array = df.values
+
+print(df.head()), print(df.info())
 
 ############################################
 
-X_full = hstack([csr_matrix(df.values),ready_df])
-X = X_full[0:traindex.shape[0]]
-testing = X_full[traindex.shape[0]:]
+# X_full = hstack([csr_matrix(df.values),ready_df])
+# X = X_full[0:traindex.shape[0]]
+# testing = X_full[traindex.shape[0]:]
 
 X = hstack([csr_matrix(df.loc[traindex,:].values),ready_df[0:traindex.shape[0]]]) # Sparse Matrix
 testing = hstack([csr_matrix(df.loc[testdex,:].values),ready_df[traindex.shape[0]:]])

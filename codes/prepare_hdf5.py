@@ -20,6 +20,7 @@ from lib.print_info import print_debug, print_doing, print_memory
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
 from lib.prep_hdf5 import get_datatype, get_info_key_hdf5, add_dataset_to_hdf5, add_text_feature_to_hdf5
+from lib.prepare_training import read_dataset
 import lib.configs as configs
 import features_list
 
@@ -43,12 +44,12 @@ def main():
     args = parser.parse_args()
     DEBUG = args.debug
     print_debug(DEBUG)
-    for dataset in ['train', 'test']:
+    for dataset in ['test', 'train']:
         do_dataset(dataset)
-    write_all_feature_to_text()        
+    # write_all_feature_to_text()        
 
 def do_dataset(dataset):
-    train_df, test_df = read_dataset(False)
+    train_df, test_df = read_dataset(False, DEBUG)
     len_train = len(train_df)
 
     if dataset=='train':
@@ -64,7 +65,8 @@ def do_dataset(dataset):
         storename = '../processed_features/{}.h5'.format(dataset)
         featuredir = '../processed_features/'
 
-    add_dataset_to_hdf5(storename, df) 
+    temp = add_dataset_to_hdf5(storename, df) 
+    if DEBUG: print(temp.isnull().sum(axis=0))
 
     files = glob.glob(featuredir + '*.pickle') 
     for file in files:
@@ -73,41 +75,26 @@ def do_dataset(dataset):
             filename = file
             print ('\n>> doing', filename)
             df = load_pickle(filename)
+            if DEBUG:
+                print(df.tail())
+
             print_doing('extract')
             if DEBUG: print(df.head()); print(df.tail())
             if dataset=='train':
-                df = df.iloc[:len_train]
-                if DEBUG: print('train: ', df.head())
+                df_new = df.iloc[:len_train]
+                if DEBUG: 
+                    print('train: ', df.head())
+                    print(df_new.isnull().sum(axis=0))
             else:
-                df = df.iloc[len_train:]                        
-                if DEBUG: print('test: ', df.tail())
+                df_new = df.iloc[len_train:]                        
+                if DEBUG: 
+                    print('test: ', df.tail())
+                    print(df_new.isnull().sum(axis=0))
             print('merging...')
-            add_dataset_to_hdf5(storename, df)
+            temp = add_dataset_to_hdf5(storename, df_new) 
+            if DEBUG: print(temp.isnull().sum(axis=0))
             print_memory() 
-
-def read_dataset(is_merged):                   
-    debug = DEBUG
-    if debug:
-        filename_train = '../input/debug{}/{}_debug{}.feather'.format(
-                debug, 'train', debug)  
-        filename_test = '../input/debug{}/{}_debug{}.feather'.format(
-                debug, 'test', debug)                                                                    
-    else:
-        filename_train = '../input/{}.feather'.format('train')  
-        filename_test = '../input/{}.feather'.format('test')  
-
-    print_doing('reading train, test and merge')  
-    if is_merged:  
-        df = read_train_test(filename_train, filename_test, '.feather', is_merged=True)
-        if debug: print(df.head())
-    else:
-        train_df, test_df = read_train_test(filename_train, filename_test, '.feather', is_merged=False)        
-        if debug: print(train_df.head()); print(test_df.head())
-    print_memory()
-    if is_merged:
-        return df
-    else:
-        return train_df, test_df                
+            
 
 def read_dataset_original(is_merged):                   
     debug = DEBUG
@@ -132,8 +119,6 @@ def read_dataset_original(is_merged):
         return df
     else:
         return train_df, test_df  
-
-
 
 def write_all_feature_to_text():
     if DEBUG:
