@@ -32,9 +32,6 @@ from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.pipeline import FeatureUnion
 from scipy.sparse import hstack, csr_matrix
 from nltk.corpus import stopwords 
-from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
-from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
-from lib.prepare_training import get_text_matrix, read_processed_h5
 
 import nltk
 nltk.download('stopwords')
@@ -46,59 +43,10 @@ import matplotlib.pyplot as plt
 SEED = 1988
 
 print("\nData Load Stage")
-
-# storename = '../processed_features_debug2/train_debug2.h5'.format(DEBUG, 'train', DEBUG)
-
-# training = load_feather('../input/debug2/train_debug2.feather')
-# training.set_index('item_id', inplace=True)
-# training['activation_date'] = pd.to_datetime(training['activation_date'])
-# traindex = training.index
-# testing = load_feather('../input/debug2/test_debug2.feather')
-# testing.set_index('item_id', inplace=True)
-# testing['activation_date'] = pd.to_datetime(testing['activation_date'])
-# testdex = testing.index
-
-
-
-
-
-
-target = ['deal_probability',]
-predictors = [
-          'activation_date',
-          'category_name',
-          'image',
-          'image_top_1',
-          'item_id',
-          'city',
-          'description',
-          'item_seq_number',
-          'param_1',
-          'param_2',
-          'param_3',
-          'parent_category_name',
-          'price',
-          'title',
-          'user_id',
-          'user_type',
-          'region',
-]
-categorical = []
-
-storename = storename = '../processed_features_debug{}/{}_debug{}.h5'.format(2, 'train', 2)
-training = read_processed_h5(storename, predictors+target, categorical)
-training.set_index('item_id', inplace=True)
-training['activation_date'] = pd.to_datetime(training['activation_date'])
+training = pd.read_csv('../input/train.csv', index_col = "item_id", parse_dates = ["activation_date"], nrows=1503)
 traindex = training.index
-
-storename = storename = '../processed_features_debug{}/{}_debug{}.h5'.format(2, 'test', 2)
-testing = read_processed_h5(storename, predictors, categorical)
-testing.set_index('item_id', inplace=True)
-testing['activation_date'] = pd.to_datetime(testing['activation_date'])
+testing = pd.read_csv('../input/test.csv', index_col = "item_id", parse_dates = ["activation_date"], nrows=508)
 testdex = testing.index
-
-
-
 y = training.deal_probability.copy()
 training.drop("deal_probability",axis=1, inplace=True)
 print('Train shape: {} Rows, {} Columns'.format(*training.shape))
@@ -284,17 +232,17 @@ lgb_clf = lgb.train(
     verbose_eval=200
 )
 
-# # Feature Importance Plot
-# f, ax = plt.subplots(figsize=[7,10])
-# lgb.plot_importance(lgb_clf, max_num_features=50, ax=ax)
-# plt.title("Light GBM Feature Importance")
-# plt.savefig('feature_import.png')
+# Feature Importance Plot
+f, ax = plt.subplots(figsize=[7,10])
+lgb.plot_importance(lgb_clf, max_num_features=50, ax=ax)
+plt.title("Light GBM Feature Importance")
+plt.savefig('feature_import.png')
 
-# print("Model Evaluation Stage")
-# print('RMSE:', np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid))))
-# lgpred = lgb_clf.predict(testing)
-# lgsub = pd.DataFrame(lgpred,columns=["deal_probability"],index=testdex)
-# lgsub['deal_probability'].clip(0.0, 1.0, inplace=True) # Between 0 and 1
-# lgsub.to_csv("lgsub.csv",index=True,header=True)
-# print("Model Runtime: %0.2f Minutes"%((time.time() - modelstart)/60))
-# print("Notebook Runtime: %0.2f Minutes"%((time.time() - notebookstart)/60))
+print("Model Evaluation Stage")
+print('RMSE:', np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid))))
+lgpred = lgb_clf.predict(testing)
+lgsub = pd.DataFrame(lgpred,columns=["deal_probability"],index=testdex)
+lgsub['deal_probability'].clip(0.0, 1.0, inplace=True) # Between 0 and 1
+lgsub.to_csv("lgsub.csv",index=True,header=True)
+print("Model Runtime: %0.2f Minutes"%((time.time() - modelstart)/60))
+print("Notebook Runtime: %0.2f Minutes"%((time.time() - notebookstart)/60))

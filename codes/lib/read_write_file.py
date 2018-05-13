@@ -51,10 +51,26 @@ def read_train_test(filename_train, filename_test, ext, is_merged):
         test_df = load_pickle(filename_test)  
     if is_merged:
         train_df = train_df.append(test_df)
-        train_df = train_df.fillna(0)
         return train_df 
     else:
         return train_df, test_df
+
+def read_train_test_csv(filename_train, filename_test, is_merged, debug, index_col, parse_dates):
+    if debug==2:
+        train_df = pd.read_csv(filename_train, index_col = index_col, parse_dates=parse_dates, nrows=1000)
+        test_df = pd.read_csv(filename_test, index_col = index_col, parse_dates=parse_dates, nrows=1000)
+    if debug==1:        
+        train_df = pd.read_csv(filename_train, index_col = index_col, parse_dates=parse_dates, nrows=100000)
+        test_df = pd.read_csv(filename_test, index_col = index_col, parse_dates=parse_dates, nrows=50000)
+    if debug==0:
+        train_df = pd.read_csv(filename_train, index_col = index_col, parse_dates=parse_dates)
+        test_df = pd.read_csv(filename_test, index_col = index_col, parse_dates=parse_dates)                
+    if is_merged:
+        train_df = train_df.append(test_df)
+        return train_df 
+    else:
+        return train_df, test_df
+
 
 def save_file(df, filename, ext):
     if ext == '.pickle':

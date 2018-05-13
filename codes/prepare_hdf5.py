@@ -45,7 +45,7 @@ def main():
     print_debug(DEBUG)
     for dataset in ['train', 'test']:
         do_dataset(dataset)
-    # write_all_feature_to_text()        
+    write_all_feature_to_text()        
 
 def do_dataset(dataset):
     train_df, test_df = read_dataset(False)
@@ -89,6 +89,30 @@ def read_dataset(is_merged):
     debug = DEBUG
     if debug:
         filename_train = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'train', debug)  
+        filename_test = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'test', debug)                                                                    
+    else:
+        filename_train = '../input/{}.feather'.format('train')  
+        filename_test = '../input/{}.feather'.format('test')  
+
+    print_doing('reading train, test and merge')  
+    if is_merged:  
+        df = read_train_test(filename_train, filename_test, '.feather', is_merged=True)
+        if debug: print(df.head())
+    else:
+        train_df, test_df = read_train_test(filename_train, filename_test, '.feather', is_merged=False)        
+        if debug: print(train_df.head()); print(test_df.head())
+    print_memory()
+    if is_merged:
+        return df
+    else:
+        return train_df, test_df                
+
+def read_dataset_original(is_merged):                   
+    debug = DEBUG
+    if debug:
+        filename_train = '../input/debug{}/{}_debug{}.feather'.format(
                 debug, 'train_translated', debug)  
         filename_test = '../input/debug{}/{}_debug{}.feather'.format(
                 debug, 'test_translated', debug)                                                                    
@@ -107,7 +131,9 @@ def read_dataset(is_merged):
     if is_merged:
         return df
     else:
-        return train_df, test_df                
+        return train_df, test_df  
+
+
 
 def write_all_feature_to_text():
     if DEBUG:

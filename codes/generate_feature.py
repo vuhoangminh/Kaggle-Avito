@@ -18,7 +18,7 @@ import nltk, textwrap
 from lib.print_info import print_debug, print_doing, print_memory
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
-from lib.gen_feature import generate_groupby_by_type_and_columns, create_time, measure_length, map_key, create_text_feature
+from lib.gen_feature import generate_groupby_by_type_and_columns, create_time, measure_length, map_key, create_text_feature, create_label_encode
 import lib.configs as configs
 import features_list
 
@@ -40,7 +40,7 @@ parser.add_argument('-b', '--debug', default=2, type=int, choices=[0,1,2])
 
 parser.add_argument('-d', '--dataset', type=str, default='train_translated',
     choices=['train_translated','test_translated','train_active_translated',
-    'test_active_translated'])
+    'test_active_translated','train','test'])
 # parser.add_argument('-d', '--dataset', type=str, default='train',choices=['train','test'])
 
 def main():
@@ -56,19 +56,24 @@ def main():
     else:
         todir = '../processed_features/'
 
+    gen_label_encode(df, todir, '.pickle')
     gen_time_feature(df, todir, '.pickle')
-    gen_len_title_description_feature(df, todir, '.pickle')
+    # gen_len_title_description_feature(df, todir, '.pickle')
     gen_mean_deal_probability (df, todir, '.pickle')
     gen_text_feature_from_kernel (df, todir, '.pickle', 'russian')
 
     ## after translated!!
-    gen_text_feature_from_kernel (df, todir, '.pickle', 'english')
+    # gen_text_feature_from_kernel (df, todir, '.pickle', 'english')
+    
+def gen_label_encode(df, todir, ext):
+    gp = create_label_encode(df, todir, ext)
+    if DEBUG: print(df.head()), print (gp.head())
+    del gp; gc.collect()
+    print_memory()
 
 def gen_text_feature_from_kernel(df, todir, ext, language):
     create_text_feature (df, todir, ext, language)
-    # if DEBUG: print(df['activation_date'].head()), print (gp.head())
-    # del gp; gc.collect()
-    # print_memory()    
+    print_memory()    
     
 def gen_time_feature(df, todir, ext):
     gp = create_time(df, todir=todir, ext = ext)
@@ -94,12 +99,24 @@ def read_dataset(dataset):
     debug = DEBUG
     if debug:
         filename_train = '../input/debug{}/{}_debug{}.feather'.format(
-                debug, 'train_translated', debug)  
+                debug, 'train', debug)  
         filename_test = '../input/debug{}/{}_debug{}.feather'.format(
-                debug, 'test_translated', debug)                                                                    
+                debug, 'test', debug)                                                                    
     else:
-        filename_train = '../input/{}.feather'.format('train_translated')  
-        filename_test = '../input/{}.feather'.format('test_translated')  
+        filename_train = '../input/{}.feather'.format('train')  
+        filename_test = '../input/{}.feather'.format('test')  
+
+    print_doing('reading train, test and merge')    
+    df = read_train_test(filename_train, filename_test, '.feather', is_merged=1)
+    print_memory()
+    print(df.head())
+    return df
+
+def read_dataset_origin(dataset):                   
+    debug = DEBUG
+
+    filename_train = '../input/train.csv'
+    filename_test = '../input/test.csv'
 
     print_doing('reading train, test and merge')    
     df = read_train_test(filename_train, filename_test, '.feather', is_merged=1)

@@ -21,19 +21,19 @@ parser = argparse.ArgumentParser(
     description='translate',
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument('-d', '--dataset', type=str, default='all',choices=['train','test','all','train_active','test_active'])
-parser.add_argument('-b', '--debug', default=0, type=int)
+parser.add_argument('-b', '--debug', default=2, type=int)
 parser.add_argument('-rm', '--readmode',default='.feather', type=str, choices=['.csv', '.feather'])
 
 process = psutil.Process(os.getpid())
 
 
-# CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
-#         'category_name', 'param_1', 'param_2', 'param_3', 
-#         'title', 'description']
-
 CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
         'category_name', 'param_1', 'param_2', 'param_3', 
-        'title']        
+        'title', 'description']
+
+# CAT_TRANSLATE = ['parent_category_name', 'region', 'city',
+#         'category_name', 'param_1', 'param_2', 'param_3', 
+#         'title']        
 
 
 def main():
@@ -99,14 +99,14 @@ def read_and_translate(filename, which_dataset):
         df = read_file(filename)
     else:
         df = mlc.load(filename) 
-    for feature in df:
-        df = desc_missing(df,feature)
+    # for feature in df:
+    #     df = desc_missing(df,feature)
     df_translated = df
     for feature in CAT_TRANSLATE:
         print('>> translating', feature)
         dstname = '../dict/dict_ru_to_en_{}_{}.pickle'.format(which_dataset, feature)
         map_dict = pickle.load(open(dstname, "rb" ))
-        map_dict['n/a'] = 'n/a'
+        # map_dict['n/a'] = 'n/a'
         new_feature = feature + '_en'
         df_translated[new_feature] = df[feature].apply(lambda x : map_dict[x])        
                                 
@@ -119,8 +119,8 @@ def read_and_build_map(filename, which_dataset):
     else:
         df = mlc.load(filename) 
 
-    for feature in df:
-        df = desc_missing(df,feature)
+    # for feature in df:
+    #     df = desc_missing(df,feature)
 
     for feature in CAT_TRANSLATE:
         map_dict = dict()

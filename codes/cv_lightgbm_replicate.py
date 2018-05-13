@@ -161,9 +161,17 @@ def DO(mat_filename, storename,num_leaves,max_depth, option, boosting_type):
     # print('option:', option)
 
     print('----------------------------------------------------------')
-    train_df = read_processed_h5(storename, predictors+target, categorical)
+    train_df = read_processed_h5(storename, predictors+target+['item_id'], categorical)
     print(train_df.info())
     print(train_df.head())
+
+
+    # training.set_index('item_id', inplace=True)
+    # training['activation_date'] = pd.to_datetime(training['activation_date'])
+    # traindex = training.index
+    # testing = load_feather('../input/debug2/test_debug2.feather')
+    # testing.set_index('item_id', inplace=True)
+    # testing['activation_date'] = pd.to_datetime(testing['activation_date'])
 
     train_df["price"] = np.log(train_df["price"]+0.001)
     train_df["price"].fillna(-999,inplace=True)
