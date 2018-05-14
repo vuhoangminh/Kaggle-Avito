@@ -83,7 +83,7 @@ PREDICTORS_GOOD = [
     'cty_pcn_mean_dp',          #15
     'reg_pcn_mean_dp',          #15
     'reg_uty_pcn_mean_dp',      #15
-    'cty_mean_dp'               #14
+    'cty_mean_dp',               #14
     'cty_uty_mean_dp',          #12
     'reg_pcn_cn_mean_dp',       #12
     'reg_uty_mean_dp',          #10

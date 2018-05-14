@@ -181,7 +181,6 @@ def get_svdtruncated_vectorizer(todir):
     del svd_matrix, vocab, tfid_matrix, tfvocab; gc.collect()    
     print_memory()            
          
-
 def read_dataset_origin(dataset):                   
     filename_train = '../input/train.csv'
     filename_test = '../input/test.csv'

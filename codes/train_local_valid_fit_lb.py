@@ -6,7 +6,7 @@ import argparse
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import os
-import gc
+import gc, random
 
 # Models Packages
 from sklearn import metrics
@@ -39,9 +39,7 @@ from features_list import PREDICTORS_BASED, PREDICTORS_OVERFIT, PREDICTORS_GOOD,
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-SEED = 1988
 yearmonthdate_string = get_string_time()
-np.random.seed(SEED)
 
 cwd = os.getcwd()
 print ('working dir', cwd)
@@ -87,66 +85,29 @@ def main():
     else:
         dir_feature = '../processed_features/'            
 
-    option_list = []
-    for option in range(8):
-        option_list = option_list + ['option' + str(option)]
+    option = 0
+    is_textadded = False
+    PREDICTORS = PREDICTORS_BASED
+    mat_filename = dir_feature + 'text_feature_kernel.pickle'
 
-    LOCAL_VALIDATION_RESULT = pd.DataFrame(index=option_list, 
-            columns=['running_time','num_round','train','val','local_test'])
-
-    if DEBUG: print(option_list); print(LOCAL_VALIDATION_RESULT)
-
-    for option in range(8):
-        # nothing here
-        if option == 0:
-            is_textadded = False
-            PREDICTORS = PREDICTORS_BASED
-            mat_filename = dir_feature + 'text_feature_kernel.pickle'
-        # kernel    
-        elif option == 1:
-            is_textadded = True
-            PREDICTORS = PREDICTORS_BASED
-            mat_filename = dir_feature + 'text_feature_kernel.pickle'
-        # kernel max_feature = 1000               
-        elif option == 2:
-            is_textadded = True
-            PREDICTORS = PREDICTORS_BASED
-            mat_filename = dir_feature + 'text_feature_kernel_1000.pickle'
-        # kernel max_feature = 30000            
-        elif option == 3:   
-            is_textadded = True
-            PREDICTORS = PREDICTORS_BASED
-            mat_filename = dir_feature + 'text_feature_kernel_30000.pickle'                 
-        # kernel max_feature = infinite            
-        elif option == 4:   
-            is_textadded = True
-            PREDICTORS = PREDICTORS_BASED
-            mat_filename = dir_feature + 'text_feature_kernel_-1.pickle'                 
-        # kernel max_feature = 18000 + 'good' feature
-        elif option == 5:
-            is_textadded = True
-            PREDICTORS = PREDICTORS_BASED + PREDICTORS_GOOD
-            mat_filename = dir_feature + 'text_feature_kernel.pickle'
-        # kernel max_feature = 18000 + not-checked feature            
-        elif option == 6:
-            is_textadded = True
-            PREDICTORS = PREDICTORS_BASED + PREDICTORS_NOTCHECKED
-            mat_filename = dir_feature + 'text_feature_kernel.pickle'
-        elif option == 7:
-            is_textadded = True
-            PREDICTORS = PREDICTORS_BASED + PREDICTORS_OVERFIT
-            mat_filename = dir_feature + 'text_feature_kernel.pickle'
-        if DEBUG:
-            print_header('Option {}'.format(option))
-            print('is_textadded {} \n predictors {} \n mat filename {}'.format(is_textadded, PREDICTORS, mat_filename))
-
-        DO(option, is_textadded, mat_filename, dir_feature)  
-
+    # seed_list = np.random.randint(2000, size=1000)
+    random.seed(1988)
+    seed_array = random.sample(range(0, 10000), 100)
+    
+    seed_list = []
+    for seed in seed_array:
+        seed_list = seed_list + ['seed_' + str(seed)]
+    LOCAL_VALIDATION_RESULT = pd.DataFrame(index=seed_list,
+            columns=['seed','running_time','num_round','train','val','local_test','diff'])
+    print(seed_list); print(LOCAL_VALIDATION_RESULT)
+    for seed in seed_array:
+        DO(option, is_textadded, mat_filename, dir_feature, seed)  
 
     print_header('FINAL SUMMARY')
     print(LOCAL_VALIDATION_RESULT)
+    LOCAL_VALIDATION_RESULT.to_csv('seed_select.csv', index=False)
 
-def DO(option, is_textadded, mat_filename, dir_feature):
+def DO(option, is_textadded, mat_filename, dir_feature, seed):
     tabular_predictors = get_tabular_predictors()
        
     X, y, test, full_predictors, predictors, testdex = prepare_training(mat_filename, dir_feature, 
@@ -169,10 +130,8 @@ def DO(option, is_textadded, mat_filename, dir_feature):
         if os.path.exists(subfilename) and not DEBUG:
             print('{} done already'.format(subfilename))     
         else:                               
-            model_lgb, subfilename = train(X,y,-1,full_predictors,
-                    categorical,predictors,boosting_type,option=option)
-            predict_sub(model_lgb, testdex, test, subfilename)
-            del model_lgb; gc.collect()
+            train(X,y,-1,full_predictors,
+                    categorical,predictors,boosting_type,option=option,seed=seed)
 
 def predict_sub(model_lgb, testdex, test, subfilename):
     print_header('Submission')
@@ -184,16 +143,16 @@ def predict_sub(model_lgb, testdex, test, subfilename):
     lgsub.to_csv(subfilename,index=True,header=True)
     print('done')
 
-def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option):
+def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option,seed):
     if DEBUG: 
-        subfilename = '../sub/debug_{}_{}_{}features_num_leave{}_OPTION{}.csv'. \
+        subfilename = '../sub/debug_findseed_{}_{}_{}features_num_leave{}_OPTION{}.csv'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
-        modelfilename = '../trained_models/debug_{}_{}_{}features_num_leave{}_OPTION{}.txt'. \
+        modelfilename = '../trained_models/debug_findseed_{}_{}_{}features_num_leave{}_OPTION{}.txt'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)            
     else:           
-        subfilename = '../sub/{}_{}_{}features_num_leave{}_OPTION{}.csv'. \
+        subfilename = '../sub/findseed_{}_{}_{}features_num_leave{}_OPTION{}.csv'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
-        modelfilename = '../trained_models/{}_{}_{}features_num_leave{}_OPTION{}.txt'. \
+        modelfilename = '../trained_models/findseed_{}_{}_{}features_num_leave{}_OPTION{}.txt'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
 
     print_header("Training")
@@ -202,10 +161,10 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
     print_doing_in_task('prepare dataset...')
 
     X, X_local_valid, y, y_local_valid = train_test_split(
-        X, y, test_size=0.10, random_state=SEED)
+        X, y, test_size=0.10, random_state=seed)
 
     X_train, X_valid, y_train, y_valid = train_test_split(
-        X, y, test_size=0.10, random_state=SEED)
+        X, y, test_size=0.10, random_state=seed)
 
     print('training shape: {} \n'.format(X.shape))
 
@@ -251,26 +210,34 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
 
     runnning_time = '{0:.2f}'.format((time.time() - start_time)/60)
     num_boost_rounds_lgb = lgb_clf.best_iteration
+    print_doing_in_task('fit val')
     val_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid))))
+    print_doing_in_task('fit train')
     train_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_train, lgb_clf.predict(X_train))))
+    print_doing_in_task('fit local val')
     local_valid_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_local_valid, lgb_clf.predict(X_local_valid))))
+    diff_lb = '{0:.4f}'.format(abs(float(local_valid_rmse)-0.2300))
 
     print('OPTION', option)
     print('model training time:     {} mins'.format(runnning_time))
+    print('seed number:             {}'.format(seed))
     print('num_boost_rounds_lgb:    {}'.format(num_boost_rounds_lgb))
     print('train rmse:              {}'.format(train_rmse))
     print('val rmse:                {}'.format(val_rmse))
     print('local valid rmse:        {}'.format(local_valid_rmse))
-
+    print('diff comapred to lb:     {}'.format(diff_lb))
+    
     print('saving model to', modelfilename)
     lgb_clf.save_model(modelfilename)
 
-    option_name = 'option' + str(option)
-    LOCAL_VALIDATION_RESULT['running_time'][option_name] = runnning_time   
-    LOCAL_VALIDATION_RESULT['num_round'][option_name] = num_boost_rounds_lgb   
-    LOCAL_VALIDATION_RESULT['train'][option_name] = train_rmse  
-    LOCAL_VALIDATION_RESULT['val'][option_name] = val_rmse  
-    LOCAL_VALIDATION_RESULT['local_test'][option_name] = local_valid_rmse
+    seed_name = 'seed_' + str(seed)
+    LOCAL_VALIDATION_RESULT['seed'][seed_name] = seed   
+    LOCAL_VALIDATION_RESULT['running_time'][seed_name] = runnning_time   
+    LOCAL_VALIDATION_RESULT['num_round'][seed_name] = num_boost_rounds_lgb   
+    LOCAL_VALIDATION_RESULT['train'][seed_name] = train_rmse  
+    LOCAL_VALIDATION_RESULT['val'][seed_name] = val_rmse  
+    LOCAL_VALIDATION_RESULT['local_test'][seed_name] = local_valid_rmse
+    LOCAL_VALIDATION_RESULT['diff'][seed_name] = diff_lb
     return lgb_clf, subfilename 
 
 def prepare_training(mat_filename, dir_feature, predictors, is_textadded):
