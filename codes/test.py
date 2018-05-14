@@ -1,5 +1,6 @@
 import pickle, os
 import pandas as pd
+import numpy as np
 
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
@@ -33,14 +34,42 @@ files = glob.glob(featuredir + '*.pickle')
         
 
 
-storename = featuredir + 'test_debug2.h5'
+# storename = featuredir + 'test_debug2.h5'
 
-store = pd.HDFStore(storename) 
-existing_key = store.keys()
-store.close()
-df = pd.DataFrame()
-for feature in existing_key:
-    df[feature] = pd.read_hdf(storename, key=feature)  
-    print('reading', feature)
+# store = pd.HDFStore(storename) 
+# existing_key = store.keys()
+# store.close()
+# df = pd.DataFrame()
+# for feature in existing_key:
+#     df[feature] = pd.read_hdf(storename, key=feature)  
+#     print('reading', feature)
 
-print(df.isnull().sum(axis=0))                     
+# print(df.isnull().sum(axis=0))  
+
+
+df = pd.DataFrame({"fruit":["apple","banana","apple","ban"],
+        "weight":[7,8,3,8],"price":[4,5,6,6]})   
+print(df)       
+
+df['size'] = df.groupby(['fruit','price']).transform(np.size)       
+print(df)
+
+df['freq'] = df.groupby('fruit')['fruit'].transform('count')
+print(df)
+
+selcols = ['fruit']
+
+df5 = df[selcols].groupby(selcols).size().reset_index(name="Time4")
+print(df5)
+df = df.merge(df5, on=selcols, how='left')
+print(df)
+
+feature_name = 'Freq'
+df6 = df[selcols]. \
+    groupby(selcols).size(). \
+    reset_index(name=feature_name)
+
+print(df6)
+df = df.merge(df6, on=selcols, how='left')
+print(df)
+

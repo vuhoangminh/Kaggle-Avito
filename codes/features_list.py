@@ -201,8 +201,25 @@ MINH_LIST_VAR_PRICE =[
     ['category_name', 'price'],      
 ]
 
-
+# count same product? should process nlp
 MINH_LIST_COUNT =[
-    ['city', 'category_name'],
-    ['region', 'category_name'],
+    # ['city', 'category_name'],
+    # ['region', 'category_name'],
+    ['user_id'],
+    ['user_id', ],
 ]
+
+MINH_LIST_UNIQUE = [
+    ['city', 'category_name'],
+]
+
+MINH_LIST_FREQ = [
+    ['user_id'],
+
+]
+
+
+# 'category_name', 'city', 'region', 'parent_category_name', 
+# 'user_type', 'item_seq_number', 'image_top_1',
+# 'day', 'week', 'weekday', 
+# 'user_id', 

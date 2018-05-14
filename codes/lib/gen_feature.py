@@ -25,9 +25,16 @@ def map_key(key):
 
 def generate_groupby_by_type_and_columns(df, selcols, apply_type, todir, ext):      
     feature_name = ''
-    for i in range(len(selcols)-1):
-        feature_name = feature_name + map_key(selcols[i]) + '_'
-    feature_name = feature_name + apply_type + '_' + map_key(selcols[len(selcols)-1])
+
+    if apply_type != 'freq': 
+        for i in range(len(selcols)-1):
+            feature_name = feature_name + map_key(selcols[i]) + '_'
+        feature_name = feature_name + apply_type + '_' + map_key(selcols[len(selcols)-1])
+    else:
+        for i in range(len(selcols)):
+            feature_name = feature_name + map_key(selcols[i]) + '_'
+        feature_name = feature_name + apply_type
+
     print('\n>> doing feature:', feature_name)
     
     filename = todir + feature_name + ext
@@ -36,6 +43,10 @@ def generate_groupby_by_type_and_columns(df, selcols, apply_type, todir, ext):
         print ('done already...')
         col_extracted = load_file(filename, ext)
     else:
+        if apply_type == 'freq':
+            col_temp = df[selcols]. \
+                groupby(selcols).size(). \
+                reset_index(name=feature_name)
         if apply_type == 'count':
             col_temp = df[selcols]. \
                 groupby(by=selcols[0:len(selcols)-1])[selcols[len(selcols)-1]].count(). \
@@ -61,14 +72,18 @@ def generate_groupby_by_type_and_columns(df, selcols, apply_type, todir, ext):
                 reset_index().rename(index=str, columns={selcols[len(selcols)-1]: feature_name})   
 
         col_extracted = pd.DataFrame()
-        if apply_type != 'cumcount':
+        if apply_type == 'cumcount':
+            col_extracted[feature_name] = col_temp.values
+            del col_temp; gc.collect()            
+        elif apply_type == 'freq':
+            df = df.merge(col_temp, on=selcols, how='left')
+            del col_temp; gc.collect()
+            col_extracted[feature_name] = df[feature_name]            
+        else:
             df = df.merge(col_temp, on=selcols[0:len(selcols)-1], how='left')
             del col_temp; gc.collect()
             col_extracted[feature_name] = df[feature_name]
-        else:
-            col_extracted[feature_name] = col_temp.values
-            del col_temp; gc.collect()
-        # print('\n >> saving to', filename)
+
         save_file(df=col_extracted,filename=filename,ext=ext)                      
     return col_extracted 
 

@@ -108,7 +108,7 @@ def DO():
             else:
                 subfilename = '../sub/{}_{}_{}features_{}_OPTION{}.csv.gz'. \
                         format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,1)                        
-            if os.path.exists(subfilename):
+            if os.path.exists(subfilename) and not DEBUG:
                 print('{} done already'.format(subfilename))     
             else:                               
                 model_lgb, subfilename = cv_train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,1)
@@ -119,19 +119,19 @@ def predict_sub(model_lgb, testdex, test, subfilename):
     lgpred = model_lgb.predict(test)
     lgsub = pd.DataFrame(lgpred,columns=["deal_probability"],index=testdex)
     lgsub['deal_probability'].clip(0.0, 1.0, inplace=True)
-    print_doing('saving submission file to', subfilename)
+    print('saving submission file to', subfilename)
     lgsub.to_csv(subfilename,index=True,header=True)
     print('done')
 
 def cv_train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option):
 
     if DEBUG: 
-        subfilename = '../sub/debug_{}_{}_{}features_{}_OPTION{}.csv.gz'. \
+        subfilename = '../sub/debug_{}_{}_{}features_{}_OPTION{}.csv'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
         modelfilename = '../trained_models/debug_{}_{}_{}features_{}_OPTION{}.txt'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)            
     else:           
-        subfilename = '../sub/{}_{}_{}features_{}_OPTION{}.csv.gz'. \
+        subfilename = '../sub/{}_{}_{}features_{}_OPTION{}.csv'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
         modelfilename = '../trained_models/{}_{}_{}features_{}_OPTION{}.txt'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
@@ -146,7 +146,7 @@ def cv_train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,
         'boosting_type': boosting_type,
         'objective': 'regression',
         'metric': 'rmse',
-        'learning_rate': 0.02,
+        'learning_rate': 0.2,
         'num_leaves': num_leave,  # we should let it be smaller than 2^(max_depth)
         'max_depth': -1,  # -1 means no limit
         'subsample': 0.8,  # Subsample ratio of the training instance.
@@ -201,7 +201,7 @@ def cv_train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,
     del dtrain_lgb
     gc.collect()
 
-    print_doing('saving model to', modelfilename)
+    print('saving model to', modelfilename)
     model_lgb.save_model(modelfilename)
     
     return model_lgb, subfilename 
