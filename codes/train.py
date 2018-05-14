@@ -27,7 +27,7 @@ import nltk
 # nltk.download('stopwords')
 
 
-from lib.print_info import print_debug, print_doing, print_memory
+from lib.print_info import print_debug, print_doing, print_memory, print_doing_in_task, print_header
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
 from lib.prep_hdf5 import get_datatype, get_info_key_hdf5, add_dataset_to_hdf5
@@ -40,7 +40,9 @@ from features_list import PREDICTORS
 import seaborn as sns
 import matplotlib.pyplot as plt
 
+SEED = 1988
 yearmonthdate_string = get_string_time()
+np.random.seed(SEED)
 
 cwd = os.getcwd()
 print ('working dir', cwd)
@@ -54,8 +56,9 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-b', '--debug', default=2, type=int, choices=[0,1,2])
 parser.add_argument('-f', '--frac', default=1, type=float) 
 parser.add_argument('-tm', '--trainmode', default='gbdt', type=str, choices=['gbdt', 'dart']) 
+parser.add_argument('-o', '--option', default=0, type=int) 
 
-SEED = 1988
+
 
 CATEGORICAL = [
     'item_id', 'user_id', 'region', 'city', 'parent_category_name',
@@ -74,52 +77,58 @@ REMOVED_LIST = [
 TARGET = ['deal_probability']
 
 def main():
-    global args, DEBUG, FRAC, PREDICTORS, TRAINMODE
+    global args, DEBUG, FRAC, PREDICTORS, TRAINMODE, OPTION
     args = parser.parse_args()
     DEBUG = args.debug
     FRAC = args.frac
     TRAINMODE = args.trainmode
+    OPTION=args.option
     print_debug(DEBUG)
     DO()
 
 def DO():
     tabular_predictors = get_tabular_predictors()
     if DEBUG:
-        # mat_filename = '../processed_features_debug2/text_feature_kernel.pickle'
-        mat_filename = '../processed_features_debug2/truncated_text_feature_kernel.pickle'
+        mat_filename = '../processed_features_debug2/text_feature_kernel.pickle'
+        # mat_filename = '../processed_features_debug2/truncated_text_feature_kernel.pickle'
         dir_feature = '../processed_features_debug2/'
     else: 
+        # mat_filename = '../processed_features/text_feature_kernel_-1.pickle'
+        mat_filename = '../processed_features/text_feature_kernel_1000.pickle'
+        # mat_filename = '../processed_features/truncated_text_feature_kernel.pickle'
         # mat_filename = '../processed_features/text_feature_kernel.pickle'
-        mat_filename = '../processed_features/truncated_text_feature_kernel.pickle'
         dir_feature = '../processed_features/'
-    X, y, test, full_predictors, predictors, testdex = prepare_training(mat_filename, dir_feature, tabular_predictors)
+    X, y, test, full_predictors, predictors, testdex = prepare_training(mat_filename, dir_feature, 
+            tabular_predictors, is_textadded=True)
     categorical = get_categorical(predictors)
     predictors = get_predictors(predictors)
 
     # num_leave_list = [7,16,32]
     num_leave_list = [16]
     if TRAINMODE == 'gbdt':
-        boosting_list = ['gbdt', 'dart']
+        boosting_list = ['gbdt']
     else:
-        boosting_list = ['dart', 'gbdt']
+        boosting_list = ['dart']
 
     for boosting_type in boosting_list:
         for num_leave in num_leave_list:
             if DEBUG:
                 subfilename = '../sub/debug_{}_{}_{}features_num_leave{}_OPTION{}.csv.gz'. \
-                        format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,1)
+                        format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,OPTION)
             else:
                 subfilename = '../sub/{}_{}_{}features_num_leave{}_OPTION{}.csv.gz'. \
-                        format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,1)                        
+                        format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,OPTION)                        
             if os.path.exists(subfilename) and not DEBUG:
                 print('{} done already'.format(subfilename))     
             else:                               
-                model_lgb, subfilename = cv_train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option=0)
+                model_lgb, subfilename = train(X,y,num_leave,full_predictors,
+                        categorical,predictors,boosting_type,option=OPTION)
                 predict_sub(model_lgb, testdex, test, subfilename)
                 del model_lgb; gc.collect()
 
 def predict_sub(model_lgb, testdex, test, subfilename):
-    print_doing('predicting')
+    print_header('Submission')
+    print_doing_in_task('predicting')
     lgpred = model_lgb.predict(test)
     lgsub = pd.DataFrame(lgpred,columns=["deal_probability"],index=testdex)
     lgsub['deal_probability'].clip(0.0, 1.0, inplace=True)
@@ -127,7 +136,7 @@ def predict_sub(model_lgb, testdex, test, subfilename):
     lgsub.to_csv(subfilename,index=True,header=True)
     print('done')
 
-def cv_train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option):
+def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option):
 
     if DEBUG: 
         subfilename = '../sub/debug_{}_{}_{}features_num_leave{}_OPTION{}.csv'. \
@@ -140,80 +149,70 @@ def cv_train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,
         modelfilename = '../trained_models/{}_{}_{}features_num_leave{}_OPTION{}.txt'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
 
-    print('\n----------------------------------------------------------')
-    print("Training...")
-    print('----------------------------------------------------------')
+    
+    print_header("Training")
+    start_time = time.time()               
 
-    start_time = time.time()
+    print_doing_in_task('prepare dataset...')
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X, y, test_size=0.10, random_state=SEED)
 
-    params = {
+    print('training shape: {} \n'.format(X.shape))
+
+    print("Light Gradient Boosting Regressor")
+    lgbm_params =  {
+        'task': 'train',
         'boosting_type': boosting_type,
         'objective': 'regression',
         'metric': 'rmse',
-        'learning_rate': 0.2,
-        'num_leaves': num_leave,  # we should let it be smaller than 2^(max_depth)
-        'max_depth': -1,  # -1 means no limit
-        'subsample': 0.8,  # Subsample ratio of the training instance.
-        'subsample_freq': 1,  # frequence of subsample, <=0 means no enable
-        'feature_fraction': 0.8,  # Subsample ratio of columns when constructing each tree.
-        'nthread': 4,
+        'max_depth': 15,
+        'feature_fraction': 0.7,
+        'bagging_fraction': 0.8,
+        'learning_rate': 0.1,
         'verbose': 0
-    }
+    }  
+    print('params:', lgbm_params)
 
-    print('>> prepare dataset...')
-    dtrain_lgb = lgb.Dataset(X, y,
-            feature_name=full_predictors,
-            categorical_feature=categorical)                       
-    print_memory()   
-
-    print('params', params)
-    print('\n>> start cv...')
+    lgtrain = lgb.Dataset(X_train, y_train,
+                    feature_name=full_predictors,
+                    categorical_feature = categorical)
+    lgvalid = lgb.Dataset(X_valid, y_valid,
+                    feature_name=full_predictors,
+                    categorical_feature = categorical)
 
     if DEBUG:
         num_boost_round = 300
         early_stopping_rounds = 10
     else:
         num_boost_round = 20000   
-        early_stopping_rounds = 30                    
-    cv_results  = lgb.cv(params, 
-                        dtrain_lgb, 
-                        categorical_feature = categorical,
-                        num_boost_round=num_boost_round,                       
-                        metrics='rmse',
-                        seed = SEED,
-                        shuffle = False,
-                        nfold=10, 
-                        show_stdv=True,
-                        early_stopping_rounds=early_stopping_rounds, 
-                        stratified=False,
-                        verbose_eval=5)                     
+        early_stopping_rounds = 30  
 
-    print('[{}]: model training time'.format(time.time() - start_time))
+    lgb_clf = lgb.train(
+        lgbm_params,
+        lgtrain,
+        num_boost_round=num_boost_round,
+        valid_sets=[lgtrain, lgvalid],
+        valid_names=['train','valid'],
+        early_stopping_rounds=early_stopping_rounds,
+        verbose_eval=10
+    )
+
     print_memory()
 
-    # print (cv_results)
-    print('--------------------------------------------------------------------') 
-    print("Model Report")
-    num_boost_rounds_lgb = len(cv_results['rmse-mean'])
-    print('num_boost_rounds_lgb = ' + str(num_boost_rounds_lgb))
-    print('best rmse = {0:.4f}'.format(cv_results['rmse-mean'][num_boost_rounds_lgb-1]))
-    
-    print ('>> start trainning... ')
-    model_lgb = lgb.train(
-                        params, dtrain_lgb, 
-                        num_boost_round=num_boost_rounds_lgb,
-                        feature_name = full_predictors,
-                        categorical_feature = categorical)
-    del dtrain_lgb
-    gc.collect()
-
+    print_header("Model Report")
+    print('model training time:     {0:.2f} mins'.format((time.time() - start_time)/60))
+    print('num_boost_rounds_lgb:    {}'.format(lgb_clf.best_iteration))
+    print('best rmse:               {0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid)))))
     print('saving model to', modelfilename)
-    model_lgb.save_model(modelfilename)
+    lgb_clf.save_model(modelfilename)
     
-    return model_lgb, subfilename 
 
-def prepare_training(mat_filename, dir_feature, predictors):
-    df, train_labels, len_train, traindex, testdex = load_train_test(['item_id'], TARGET, DEBUG)
+    return lgb_clf, subfilename 
+
+def prepare_training(mat_filename, dir_feature, predictors, is_textadded):
+    print_header('Load features')
+    df, y, len_train, traindex, testdex = load_train_test(['item_id'], TARGET, DEBUG)
+    del len_train; gc.collect()
     df = drop_col(df,REMOVED_LIST)
 
     # add features
@@ -226,26 +225,37 @@ def prepare_training(mat_filename, dir_feature, predictors):
             if feature in df:
                 print('{} already added'.format(feature))
             else:   
-                print('\n>> adding {}'.format(feature))
+                print_doing_in_task('adding {}'.format(feature))
                 df = add_feature(df, dir_feature_file)
     print_memory()
 
-    # add text_feature
-    print_doing('add text features')
-    ready_df, tfvocab = get_text_matrix(mat_filename, 'all', 2, 0)
+    if is_textadded:
+        # add text_feature
+        print_doing_in_task('add text features')
+        ready_df, tfvocab = get_text_matrix(mat_filename, 'all', 2, 0)
 
-    # add text_feature
-    print_doing('stack')   
-    X = hstack([csr_matrix(df.loc[traindex,:].values),ready_df[0:traindex.shape[0]]]) # Sparse Matrix
-    testing = hstack([csr_matrix(df.loc[testdex,:].values),ready_df[traindex.shape[0]:]])
+        # stack
+        print_doing_in_task('stack')   
+        X = hstack([csr_matrix(df.loc[traindex,:].values),ready_df[0:traindex.shape[0]]]) # Sparse Matrix
+        testing = hstack([csr_matrix(df.loc[testdex,:].values),ready_df[traindex.shape[0]:]])
+        print_memory()
 
-    tfvocab = df.columns.tolist() + tfvocab
-    for shape in [X,testing]:
-        print("{} Rows and {} Cols".format(*shape.shape))
-    print("Feature Names Length: ",len(tfvocab))
-    # del df; gc.collect()  
+        print_doing_in_task('prepare vocab')   
+        tfvocab = df.columns.tolist() + tfvocab
+        for shape in [X,testing]:
+            print("{} Rows and {} Cols".format(*shape.shape))
+        print("Feature Names Length: ",len(tfvocab))
+    
+    else:
+        tfvocab = df.columns.tolist()
+        testing = hstack([csr_matrix(df.loc[testdex,:].values)])
+        X = hstack([csr_matrix(df.loc[traindex,:].values)]) # Sparse Matrix
 
-    return X, train_labels, testing, tfvocab, df.columns.tolist(), testdex  
+    return X, y, testing, tfvocab, df.columns.tolist(), testdex  
+
+# def create_local_validation():
+
+
 
 def get_tabular_predictors():
     predictors = PREDICTORS

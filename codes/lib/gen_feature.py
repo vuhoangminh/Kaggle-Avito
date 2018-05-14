@@ -146,7 +146,7 @@ def rename_en_to_ru(df):
     df.columns = df.columns.to_series().map(TRANSLATE_LIST_SWITCHED)  
     return df  
 
-def create_text_feature (df, todir, ext, language):
+def create_text_feature (df, todir, ext, language, max_features):
     print('\n>> doing Text Features')
     if language == 'russian':
         df = remove_english(df)
@@ -155,14 +155,14 @@ def create_text_feature (df, todir, ext, language):
         df = rename_en_to_ru(df)
 
     if language == 'russian':
-        filename = todir + 'text_feature_kernel' + ext
+        filename = todir + 'text_feature_kernel_' + str(max_features) + ext
         filename_len = todir + 'len_feature_kernel' + ext  
-        filename_vocab = todir + 'vocab' + ext  
+        filename_vocab = todir + 'vocab_' + str(max_features) + ext  
         suffix_feature = ''
     else:
-        filename = todir + 'text_feature_kernel_en' + ext   
+        filename = todir + 'text_feature_kernel_' + str(max_features) + '_en' + ext   
         filename_len = todir + 'len_feature_kernel_en' + ext     
-        filename_vocab = todir + 'vocab_en' + ext  
+        filename_vocab = todir + 'vocab_' + str(max_features) + '_en' + ext  
         suffix_feature = '_en'
 
     if os.path.exists(filename):
@@ -207,22 +207,35 @@ def create_text_feature (df, todir, ext, language):
             #"max_df":.9,
             "smooth_idf":False
         }
-        vectorizer = FeatureUnion([
-                ('description',TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    max_features=18000,
-                    **tfidf_para,
-                    preprocessor=get_col('description'))),
-                ('text_feat',CountVectorizer(
-                    ngram_range=(1, 2),
-                    #max_features=7000,
-                    preprocessor=get_col('text_feat'))),
-                ('title',TfidfVectorizer(
-                    ngram_range=(1, 2),
-                    **tfidf_para,
-                    #max_features=7000,
-                    preprocessor=get_col('title')))
-            ])   
+        if max_features > 0:
+            vectorizer = FeatureUnion([
+                    ('description',TfidfVectorizer(
+                        ngram_range=(1, 2),
+                        max_features=max_features,
+                        **tfidf_para,
+                        preprocessor=get_col('description'))),
+                    ('text_feat',CountVectorizer(
+                        ngram_range=(1, 2),
+                        preprocessor=get_col('text_feat'))),
+                    ('title',TfidfVectorizer(
+                        ngram_range=(1, 2),
+                        **tfidf_para,
+                        preprocessor=get_col('title')))
+                ])  
+        else:
+            vectorizer = FeatureUnion([
+                    ('description',TfidfVectorizer(
+                        ngram_range=(1, 2),
+                        **tfidf_para,
+                        preprocessor=get_col('description'))),
+                    ('text_feat',CountVectorizer(
+                        ngram_range=(1, 2),
+                        preprocessor=get_col('text_feat'))),
+                    ('title',TfidfVectorizer(
+                        ngram_range=(1, 2),
+                        **tfidf_para,
+                        preprocessor=get_col('title')))
+                ])                               
 
         vectorizer.fit(df.to_dict('records'))
         ready_df = vectorizer.transform(df.to_dict('records'))
@@ -239,12 +252,10 @@ def create_text_feature (df, todir, ext, language):
         for shape in [X]:
             print("{} Rows and {} Cols".format(*shape.shape))
         print_memory()
-        
-        print(df.head())
-        print(ready_df[0:5,:])
                       
         save_file(df, filename_len, ext)
 
+        print('>> saving to', filename)
         with open(filename, "wb") as f:
             pickle.dump((ready_df,tfvocab), f)
 
@@ -252,12 +263,8 @@ def create_text_feature (df, todir, ext, language):
         
         with open(filename, "rb") as f:
             ready_df, tfvocab = pickle.load(f)             
-
-        # print(tfvocab)
-
-        # save_file(ready_df, filename, ext)
-        # save_file(tfvocab, filename, ext)
     return df, ready_df        
+
 
 
 CATEGORICAL = [

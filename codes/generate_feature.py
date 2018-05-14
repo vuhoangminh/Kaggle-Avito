@@ -14,8 +14,10 @@ import matplotlib.pyplot as plt
 import glob
 import time
 import nltk, textwrap
+from sklearn.decomposition import TruncatedSVD
+from scipy import sparse
 
-from lib.print_info import print_debug, print_doing, print_memory
+from lib.print_info import print_debug, print_doing, print_memory, print_doing_in_task
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
 from lib.gen_feature import generate_groupby_by_type_and_columns, create_time, measure_length, map_key, create_text_feature, create_label_encode
@@ -59,18 +61,21 @@ def main():
     else:
         todir = '../processed_features/'
 
+    
+    ## done
     gen_label_encode(df, todir, '.pickle')
     gen_time_feature(df, todir, '.pickle')
-    # gen_len_title_description_feature(df, todir, '.pickle')
     gen_mean_deal_probability (df, todir, '.pickle')
     gen_mean_price (df, todir, '.pickle')
     gen_var_deal_probability (df, todir, '.pickle')
     gen_var_price (df, todir, '.pickle')
-
-    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian')
-
+    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', -1)
+    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 1000)
+    
     ## after translated!!
     # gen_text_feature_from_kernel (df, todir, '.pickle', 'english')
+    # gen_len_title_description_feature(df, todir, '.pickle') 
+    # get_svdtruncated_vectorizer(todir)
     
 def gen_label_encode(df, todir, ext):
     gp = create_label_encode(df, todir, ext)
@@ -78,8 +83,8 @@ def gen_label_encode(df, todir, ext):
     del gp; gc.collect()
     print_memory()
 
-def gen_text_feature_from_kernel(df, todir, ext, language):
-    create_text_feature (df, todir, ext, language)
+def gen_text_feature_from_kernel(df, todir, ext, language, max_features):
+    create_text_feature (df, todir, ext, language, max_features)
     print_memory()    
     
 def gen_time_feature(df, todir, ext):
@@ -123,7 +128,6 @@ def gen_var_price (df, todir, ext):
         del gp; gc.collect()    
         print_memory()
 
-
 def read_dataset(dataset):                   
     debug = DEBUG
     if debug:
@@ -141,12 +145,46 @@ def read_dataset(dataset):
     print(df.head())
     return df
 
-def read_dataset_origin(dataset):                   
-    debug = DEBUG
+def get_svdtruncated_vectorizer(todir):
+    print_doing('doing svdtruncated text feature')
+    filename = todir + 'text_feature_kernel.pickle'
+    savename = todir + 'truncated_text_feature_kernel.pickle'
+    if os.path.exists(savename):
+        print('done already...')
+        with open(savename, "rb") as f:
+            svd_matrix,vocab = pickle.load(f)
+        with open(filename, "rb") as f:
+            tfid_matrix, tfvocab = pickle.load(f)             
+    else:        
+        with open(filename, "rb") as f:
+            tfid_matrix, tfvocab = pickle.load(f)  
+        svdT = TruncatedSVD(n_components=400)
+        print_doing_in_task('truncated svd')
+        svd_matrix = svdT.fit_transform(tfid_matrix)
+        print_doing_in_task('convert to sparse')
+        svd_matrix = sparse.csr_matrix(svd_matrix, dtype=np.float32)
+        vocab = []
+        for i in range(np.shape(svd_matrix)[1]):
+            vocab.append('lsa'+str(i+1))
+        with open(savename, "wb") as f:
+            pickle.dump((svd_matrix,vocab), f, protocol=pickle.HIGHEST_PROTOCOL) 
+    print('---- before truncate')
+    print(tfid_matrix.shape), print ('len of feature:', len(tfvocab))
+    print('---- after truncate')
+    print(svd_matrix.shape), print ('len of feature:', len(vocab))
 
+    if DEBUG:
+        print(tfid_matrix)
+        print('\n')
+        print(svd_matrix)
+    
+    del svd_matrix, vocab, tfid_matrix, tfvocab; gc.collect()    
+    print_memory()            
+         
+
+def read_dataset_origin(dataset):                   
     filename_train = '../input/train.csv'
     filename_test = '../input/test.csv'
-
     print_doing('reading train, test and merge')    
     df = read_train_test(filename_train, filename_test, '.feather', is_merged=1)
     print_memory()

@@ -24,7 +24,7 @@ def translate_textblob():
     str = ''
     for dataset in ['train_translated', 'train_active_translated', 'test_translated',
                 'test_active_translated']:
-        for debug in [2,1,0]:
+        for debug in [0]:
             temp = 'nohup python -u translate_textblob.py -b {} -d {} & '.format(debug, dataset)
             str = str + temp           
 
@@ -47,6 +47,6 @@ def run_gen_fea_prepare_hdf5():
     file.write(str) 
     print (str) 
 
-# translate_textblob()    
+translate_textblob()    
 
-run_gen_fea_prepare_hdf5()
+# run_gen_fea_prepare_hdf5()

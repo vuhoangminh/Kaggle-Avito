@@ -62,33 +62,74 @@
 #     'uty_pcn_mean_dp'
 # ]        
 
-PREDICTORS = [
+PREDICTORS_BASED = [
     'time', 'cat_encode', 'len_feature_kernel',
-    # minh's features
+] 
+
+PREDICTORS_OVERFIT = [
+    # overfit
+    'uid_cn_mean_dp',
+    'uid_mean_dp',
+    'uid_pcn_cn_mean_dp',
+    'uid_pcn_mean_dp',
+] 
+
+PREDICTORS_GOOD = [
+    'cty_uty_pcn_cn_mean_dp',   #151
+    'reg_uty_pcn_cn_mean_dp',   #63
+    'cty_pcn_cn_mean_dp',       #36
+    'uty_cn_mean_dp',           #29
+    'cty_uty_pcn_mean_dp',      #27
+    'cty_pcn_mean_dp',          #15
+    'reg_pcn_mean_dp',          #15
+    'reg_uty_pcn_mean_dp',      #15
+    'cty_mean_dp'               #14
+    'cty_uty_mean_dp',          #12
+    'reg_pcn_cn_mean_dp',       #12
+    'reg_uty_mean_dp',          #10
+]
+
+PREDICTORS_NOTCHECKED = [
+    # option 1 low score
     'cn_mean_dp',
-    'cty_mean_dp',
-    'cty_pcn_cn_mean_dp',
-    'cty_pcn_mean_dp',
-    'cty_uty_mean_dp',
-    'cty_uty_pcn_cn_mean_dp',
-    'cty_uty_pcn_mean_dp',
     'pcn_cn_mean_dp',
     'pcn_mean_dp',
-    # 'price',
     'reg_mean_dp',
-    'reg_pcn_cn_mean_dp',
-    'reg_pcn_mean_dp',
-    'reg_uty_mean_dp',
-    'reg_uty_pcn_cn_mean_dp',
-    'reg_uty_pcn_mean_dp',
+    'uty_mean_dp',
+    'uty_pcn_cn_mean_dp',
+    'uty_pcn_mean_dp'
+] 
+
+PREDICTORS3 = [
+    'time', 'cat_encode', 'len_feature_kernel',
+
+    'cty_uty_pcn_cn_mean_dp',   #151
+    'reg_uty_pcn_cn_mean_dp',   #63
+    'cty_pcn_cn_mean_dp',       #36
+    'uty_cn_mean_dp',           #29
+    'cty_uty_pcn_mean_dp',      #27
+    'cty_pcn_mean_dp',          #15
+    'reg_pcn_mean_dp',          #15
+    'reg_uty_pcn_mean_dp',      #15
+    'cty_mean_dp'               #14
+    'cty_uty_mean_dp',          #12
+    'reg_pcn_cn_mean_dp',       #12
+    'reg_uty_mean_dp',          #10
+
+    ## option 1 low score
+    # 'cn_mean_dp',
+    # 'pcn_cn_mean_dp',
+    # 'pcn_mean_dp',
+    # 'reg_mean_dp',
+    # 'uty_mean_dp',
+    # 'uty_pcn_cn_mean_dp',
+    # 'uty_pcn_mean_dp'
+
+    ## overfit
     # 'uid_cn_mean_dp',
     # 'uid_mean_dp',
     # 'uid_pcn_cn_mean_dp',
     # 'uid_pcn_mean_dp',
-    'uty_cn_mean_dp',
-    'uty_mean_dp',
-    'uty_pcn_cn_mean_dp',
-    'uty_pcn_mean_dp'
 ] 
 
 MINH_LIST_MEAN_DEAL_PROB =[

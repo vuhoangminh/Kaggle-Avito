@@ -110,8 +110,12 @@ def get_string_time():
         day_string = '0'+str(now.day)
     else:
         day_string = str(now.day)
-    yearmonthdate_string = str(now.year) + month_string + day_string
-    return yearmonthdate_string
+    if now.hour<10:
+        hour_string = '0'+str(now.hour)
+    else:
+        hour_string = str(now.hour)     
+    yearmonthdatehour_string = str(now.year) + month_string + day_string + hour_string
+    return yearmonthdatehour_string
 
 # def get_predictors(storename):
 #     # with h5py.File(storename,'r') as hf:
