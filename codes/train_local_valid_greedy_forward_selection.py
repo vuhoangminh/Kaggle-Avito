@@ -112,7 +112,6 @@ def main():
         if feature!='base':
             PREDICTORS.remove(feature)
 
-
     print_header('FINAL SUMMARY')
     print(LOCAL_VALIDATION_RESULT)
     LOCAL_VALIDATION_RESULT.to_csv('forward_selection.csv', index=True)

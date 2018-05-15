@@ -134,7 +134,7 @@ def DO():
             if os.path.exists(subfilename) and not DEBUG:
                 print('{} done already'.format(subfilename))     
             else:                               
-                model_lgb, subfilename = train(X,y,num_leave,full_predictors,
+                model_lgb, subfilename = train(X,y,num_leave,15,full_predictors,
                         categorical,predictors,boosting_type,option=OPTION)
                 predict_sub(model_lgb, testdex, test, subfilename)
                 del model_lgb; gc.collect()
@@ -149,76 +149,7 @@ def predict_sub(model_lgb, testdex, test, subfilename):
     lgsub.to_csv(subfilename,index=True,header=True)
     print('done')
 
-def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option):
 
-    if DEBUG: 
-        subfilename = '../sub/debug_{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.csv'. \
-                format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
-        modelfilename = '../trained_models/debug_{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.txt'. \
-                format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)            
-    else:           
-        subfilename = '../sub/{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.csv'. \
-                format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
-        modelfilename = '../trained_models/{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.txt'. \
-                format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
-   
-    print_header("Training")
-    start_time = time.time()               
-
-    print_doing_in_task('prepare dataset...')
-    X_train, X_valid, y_train, y_valid = train_test_split(
-        X, y, test_size=0.10, random_state=SEED)
-
-    print('training shape: {} \n'.format(X.shape))
-
-    print("Light Gradient Boosting Regressor")
-    lgbm_params =  {
-        'task': 'train',
-        'boosting_type': boosting_type,
-        'objective': 'regression',
-        'metric': 'rmse',
-        'max_depth': 15,
-        'feature_fraction': 0.7,
-        'bagging_fraction': 0.8,
-        'learning_rate': 0.1,
-        'verbose': 0
-    }  
-    print('params:', lgbm_params)
-
-    lgtrain = lgb.Dataset(X_train, y_train,
-                    feature_name=full_predictors,
-                    categorical_feature = categorical)
-    lgvalid = lgb.Dataset(X_valid, y_valid,
-                    feature_name=full_predictors,
-                    categorical_feature = categorical)
-
-    if DEBUG:
-        num_boost_round = 300
-        early_stopping_rounds = 10
-    else:
-        num_boost_round = 20000   
-        early_stopping_rounds = 100
-
-    lgb_clf = lgb.train(
-        lgbm_params,
-        lgtrain,
-        num_boost_round=num_boost_round,
-        valid_sets=[lgtrain, lgvalid],
-        valid_names=['train','valid'],
-        early_stopping_rounds=early_stopping_rounds,
-        verbose_eval=10
-    )
-
-    print_memory()
-
-    print_header("Model Report")
-    print('model training time:     {0:.2f} mins'.format((time.time() - start_time)/60))
-    print('num_boost_rounds_lgb:    {}'.format(lgb_clf.best_iteration))
-    print('best rmse:               {0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid)))))
-    print('saving model to', modelfilename)
-    lgb_clf.save_model(modelfilename)
-    
-    return lgb_clf, subfilename 
 
 def prepare_training(mat_filename, dir_feature, predictors, is_textadded):
     print_header('Load features')
@@ -264,8 +195,8 @@ def prepare_training(mat_filename, dir_feature, predictors, is_textadded):
 
     return X, y, testing, tfvocab, df.columns.tolist(), testdex  
 
-def get_tabular_predictors():
-    predictors = PREDICTORS
+def get_tabular_predictors(predictors):
+    predictors = predictors
     print('------------------------------------------------')
     print('load list:')
     for feature in predictors:
