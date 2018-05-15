@@ -6,7 +6,7 @@ import argparse
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import os
-import gc
+import gc, random
 
 # Models Packages
 from sklearn import metrics
@@ -26,7 +26,6 @@ from nltk.corpus import stopwords
 import nltk
 # nltk.download('stopwords')
 
-
 from lib.print_info import print_debug, print_doing, print_memory, print_doing_in_task, print_header
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
@@ -34,15 +33,13 @@ from lib.prep_hdf5 import get_datatype, get_info_key_hdf5, add_dataset_to_hdf5
 from lib.prepare_training import get_text_matrix, read_processed_h5, read_dataset, drop_col, load_train_test, add_feature, get_string_time
 import lib.configs as configs
 import features_list
-from features_list import PREDICTORS_BASED
+from features_list import PREDICTORS_BASED, PREDICTORS_OVERFIT, PREDICTORS_GOOD, PREDICTORS_NOTCHECKED
 
 # Viz
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-SEED = 1988
 yearmonthdate_string = get_string_time()
-np.random.seed(SEED)
 
 cwd = os.getcwd()
 print ('working dir', cwd)
@@ -56,7 +53,7 @@ parser = argparse.ArgumentParser(
 parser.add_argument('-b', '--debug', default=2, type=int, choices=[0,1,2])
 parser.add_argument('-f', '--frac', default=1, type=float) 
 parser.add_argument('-tm', '--trainmode', default='gbdt', type=str, choices=['gbdt', 'dart']) 
-parser.add_argument('-o', '--option', default=0, type=int) 
+# parser.add_argument('-o', '--option', default=0, type=int) 
 
 CATEGORICAL = [
     'item_id', 'user_id', 'region', 'city', 'parent_category_name',
@@ -75,69 +72,66 @@ REMOVED_LIST = [
 TARGET = ['deal_probability']
 
 def main():
-    global args, DEBUG, FRAC, PREDICTORS, TRAINMODE, OPTION
+    global args, DEBUG, FRAC, PREDICTORS, TRAINMODE, PREDICTORS, LOCAL_VALIDATION_RESULT
     args = parser.parse_args()
     DEBUG = args.debug
     FRAC = args.frac
     TRAINMODE = args.trainmode
-    OPTION=args.option
+    # OPTION=args.option
     print_debug(DEBUG)
-    feature_train = get_good_local()
-    if DEBUG: print(feature_train)
-    PREDICTORS = PREDICTORS_BASED + feature_train
-    if DEBUG: print(PREDICTORS)
-    DO()
 
-def get_good_local():
-    filename = 'csv/forward_selection.csv'
-    df = load_csv(filename)
-    cols = df.columns
-    feature_name = cols[0]
-    diff_name = cols[len(cols)-1]
-    feature_train = []
-    for index, row in df.iterrows():
-        feature = row[feature_name]
-        diff = row[diff_name]
-        if diff<0:
-            feature_train = feature_train + [feature]
-            print(feature, diff)
-    return feature_train            
-
-def DO():
-    tabular_predictors = get_tabular_predictors()
     if DEBUG:
-        mat_filename = '../processed_features_debug2/text_feature_kernel.pickle'
-        dir_feature = '../processed_features_debug2/'
-    else: 
-        mat_filename = '../processed_features/text_feature_kernel_30000.pickle'
-        dir_feature = '../processed_features/'
+        dir_feature = '../processed_features_debug2/' 
+    else:
+        dir_feature = '../processed_features/'            
+
+    option = 0
+    is_textadded = False
+    PREDICTORS = PREDICTORS_BASED
+    mat_filename = dir_feature + 'text_feature_kernel.pickle'
+
+    # seed_list = np.random.randint(2000, size=1000)
+    random.seed(1992)
+    seed_array = random.sample(range(0, 10000), 100)
+    
+    seed_list = []
+    for seed in seed_array:
+        seed_list = seed_list + ['seed_' + str(seed)]
+    LOCAL_VALIDATION_RESULT = pd.DataFrame(index=seed_list,
+            columns=['seed','running_time','num_round','train','val','local_test','diff'])
+    print(seed_list); print(LOCAL_VALIDATION_RESULT)
+    for seed in seed_array:
+        DO(option, is_textadded, mat_filename, dir_feature, seed)  
+
+    print_header('FINAL SUMMARY')
+    print(LOCAL_VALIDATION_RESULT)
+    LOCAL_VALIDATION_RESULT.to_csv('seed_select.csv', index=False)
+
+def DO(option, is_textadded, mat_filename, dir_feature, seed):
+    tabular_predictors = get_tabular_predictors()
+       
     X, y, test, full_predictors, predictors, testdex = prepare_training(mat_filename, dir_feature, 
-            tabular_predictors, is_textadded=True)
+            tabular_predictors, is_textadded=is_textadded)
     categorical = get_categorical(predictors)
     predictors = get_predictors(predictors)
 
-    # num_leave_list = [7,16,32]
-    num_leave_list = [-1]
     if TRAINMODE == 'gbdt':
         boosting_list = ['gbdt']
     else:
         boosting_list = ['dart']
 
     for boosting_type in boosting_list:
-        for num_leave in num_leave_list:
-            if DEBUG:
-                subfilename = '../sub/debug_{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.csv.gz'. \
-                        format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,OPTION)
-            else:
-                subfilename = '../sub/{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.csv.gz'. \
-                        format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,OPTION)                        
-            if os.path.exists(subfilename) and not DEBUG:
-                print('{} done already'.format(subfilename))     
-            else:                               
-                model_lgb, subfilename = train(X,y,num_leave,full_predictors,
-                        categorical,predictors,boosting_type,option=OPTION)
-                predict_sub(model_lgb, testdex, test, subfilename)
-                del model_lgb; gc.collect()
+        if DEBUG:
+            subfilename = '../sub/debug_{}_{}_{}features_num_leave{}_OPTION{}.csv.gz'. \
+                    format(yearmonthdate_string,boosting_type,str(len(predictors)),-1,option)
+        else:
+            subfilename = '../sub/{}_{}_{}features_num_leave{}_OPTION{}.csv.gz'. \
+                    format(yearmonthdate_string,boosting_type,str(len(predictors)),-1,option)                        
+        if os.path.exists(subfilename) and not DEBUG:
+            print('{} done already'.format(subfilename))     
+        else:                               
+            train(X,y,-1,full_predictors,
+                    categorical,predictors,boosting_type,option=option,seed=seed)
 
 def predict_sub(model_lgb, testdex, test, subfilename):
     print_header('Submission')
@@ -149,25 +143,28 @@ def predict_sub(model_lgb, testdex, test, subfilename):
     lgsub.to_csv(subfilename,index=True,header=True)
     print('done')
 
-def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option):
-
+def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,option,seed):
     if DEBUG: 
-        subfilename = '../sub/debug_{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.csv'. \
+        subfilename = '../sub/debug_findseed_{}_{}_{}features_num_leave{}_OPTION{}.csv'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
-        modelfilename = '../trained_models/debug_{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.txt'. \
+        modelfilename = '../trained_models/debug_findseed_{}_{}_{}features_num_leave{}_OPTION{}.txt'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)            
     else:           
-        subfilename = '../sub/{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.csv'. \
+        subfilename = '../sub/findseed_{}_{}_{}features_num_leave{}_OPTION{}.csv'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
-        modelfilename = '../trained_models/{}_{}_{}features_numleave{}_maxdepth15_OPTION{}.txt'. \
+        modelfilename = '../trained_models/findseed_{}_{}_{}features_num_leave{}_OPTION{}.txt'. \
                 format(yearmonthdate_string,boosting_type,str(len(predictors)),num_leave,option)
-   
+
     print_header("Training")
     start_time = time.time()               
 
     print_doing_in_task('prepare dataset...')
+
+    X, X_local_valid, y, y_local_valid = train_test_split(
+        X, y, test_size=0.2, random_state=seed)
+
     X_train, X_valid, y_train, y_valid = train_test_split(
-        X, y, test_size=0.10, random_state=SEED)
+        X, y, test_size=0.10, random_state=seed)
 
     print('training shape: {} \n'.format(X.shape))
 
@@ -197,7 +194,7 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
         early_stopping_rounds = 10
     else:
         num_boost_round = 20000   
-        early_stopping_rounds = 100
+        early_stopping_rounds = 30  
 
     lgb_clf = lgb.train(
         lgbm_params,
@@ -208,16 +205,39 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
         early_stopping_rounds=early_stopping_rounds,
         verbose_eval=10
     )
-
     print_memory()
-
     print_header("Model Report")
-    print('model training time:     {0:.2f} mins'.format((time.time() - start_time)/60))
-    print('num_boost_rounds_lgb:    {}'.format(lgb_clf.best_iteration))
-    print('best rmse:               {0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid)))))
+
+    runnning_time = '{0:.2f}'.format((time.time() - start_time)/60)
+    num_boost_rounds_lgb = lgb_clf.best_iteration
+    print_doing_in_task('fit val')
+    val_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid))))
+    print_doing_in_task('fit train')
+    train_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_train, lgb_clf.predict(X_train))))
+    print_doing_in_task('fit local val')
+    local_valid_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_local_valid, lgb_clf.predict(X_local_valid))))
+    diff_lb = '{0:.4f}'.format(abs(float(local_valid_rmse)-0.2300))
+
+    print('OPTION', option)
+    print('model training time:     {} mins'.format(runnning_time))
+    print('seed number:             {}'.format(seed))
+    print('num_boost_rounds_lgb:    {}'.format(num_boost_rounds_lgb))
+    print('train rmse:              {}'.format(train_rmse))
+    print('val rmse:                {}'.format(val_rmse))
+    print('local valid rmse:        {}'.format(local_valid_rmse))
+    print('diff comapred to lb:     {}'.format(diff_lb))
+    
     print('saving model to', modelfilename)
     lgb_clf.save_model(modelfilename)
-    
+
+    seed_name = 'seed_' + str(seed)
+    LOCAL_VALIDATION_RESULT['seed'][seed_name] = seed   
+    LOCAL_VALIDATION_RESULT['running_time'][seed_name] = runnning_time   
+    LOCAL_VALIDATION_RESULT['num_round'][seed_name] = num_boost_rounds_lgb   
+    LOCAL_VALIDATION_RESULT['train'][seed_name] = train_rmse  
+    LOCAL_VALIDATION_RESULT['val'][seed_name] = val_rmse  
+    LOCAL_VALIDATION_RESULT['local_test'][seed_name] = local_valid_rmse
+    LOCAL_VALIDATION_RESULT['diff'][seed_name] = diff_lb
     return lgb_clf, subfilename 
 
 def prepare_training(mat_filename, dir_feature, predictors, is_textadded):
@@ -263,6 +283,21 @@ def prepare_training(mat_filename, dir_feature, predictors, is_textadded):
         X = hstack([csr_matrix(df.loc[traindex,:].values)]) # Sparse Matrix
 
     return X, y, testing, tfvocab, df.columns.tolist(), testdex  
+
+def create_local_validation():
+    if DEBUG:
+        dir_feature = '../processed_features_debug2/'
+        N = 1503
+    else: 
+        dir_feature = '../processed_features/' 
+        N = 1503424 
+    filename = dir_feature + 'local_validation.pickle'
+    if os.path.exists(filename):
+        local_validation_array = load_pickle(filename)
+    else:  
+        local_validation_array = [i for i in range(0,N,int(N/100))]
+        save_pickle(local_validation_array, filename)
+    return local_validation_array       
 
 def get_tabular_predictors():
     predictors = PREDICTORS

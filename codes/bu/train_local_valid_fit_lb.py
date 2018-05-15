@@ -98,7 +98,7 @@ def main():
     for seed in seed_array:
         seed_list = seed_list + ['seed_' + str(seed)]
     LOCAL_VALIDATION_RESULT = pd.DataFrame(index=seed_list,
-            columns=['seed','running_time','num_round','train','val','local_test','diff'])
+            columns=['seed','running_time','num_round','train','val','diff'])
     print(seed_list); print(LOCAL_VALIDATION_RESULT)
     for seed in seed_array:
         DO(option, is_textadded, mat_filename, dir_feature, seed)  
@@ -160,9 +160,6 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
 
     print_doing_in_task('prepare dataset...')
 
-    X, X_local_valid, y, y_local_valid = train_test_split(
-        X, y, test_size=0.10, random_state=seed)
-
     X_train, X_valid, y_train, y_valid = train_test_split(
         X, y, test_size=0.10, random_state=seed)
 
@@ -214,9 +211,7 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
     val_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid))))
     print_doing_in_task('fit train')
     train_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_train, lgb_clf.predict(X_train))))
-    print_doing_in_task('fit local val')
-    local_valid_rmse = '{0:.4f}'.format(np.sqrt(metrics.mean_squared_error(y_local_valid, lgb_clf.predict(X_local_valid))))
-    diff_lb = '{0:.4f}'.format(abs(float(local_valid_rmse)-0.2300))
+    diff_lb = '{0:.4f}'.format(abs(float(val_rmse)-0.2300))
 
     print('OPTION', option)
     print('model training time:     {} mins'.format(runnning_time))
@@ -224,7 +219,6 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
     print('num_boost_rounds_lgb:    {}'.format(num_boost_rounds_lgb))
     print('train rmse:              {}'.format(train_rmse))
     print('val rmse:                {}'.format(val_rmse))
-    print('local valid rmse:        {}'.format(local_valid_rmse))
     print('diff comapred to lb:     {}'.format(diff_lb))
     
     print('saving model to', modelfilename)
@@ -236,7 +230,6 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
     LOCAL_VALIDATION_RESULT['num_round'][seed_name] = num_boost_rounds_lgb   
     LOCAL_VALIDATION_RESULT['train'][seed_name] = train_rmse  
     LOCAL_VALIDATION_RESULT['val'][seed_name] = val_rmse  
-    LOCAL_VALIDATION_RESULT['local_test'][seed_name] = local_valid_rmse
     LOCAL_VALIDATION_RESULT['diff'][seed_name] = diff_lb
     return lgb_clf, subfilename 
 

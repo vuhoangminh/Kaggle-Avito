@@ -16,6 +16,7 @@ import time
 import nltk, textwrap
 from sklearn.decomposition import TruncatedSVD
 from scipy import sparse
+from sklearn.model_selection import train_test_split
 
 from lib.print_info import print_debug, print_doing, print_memory, print_doing_in_task
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
@@ -54,23 +55,27 @@ def main():
     DATASET = args.dataset
     DEBUG = args.debug
     print_debug(DEBUG)
-
     df = read_dataset(DATASET)
+    df_good = read_dataset_deal_probability(DATASET, 1988)
+    if DEBUG:
+        save_csv(df, 'df.csv')
+        save_csv(df_good, 'df_good.csv')
     if DEBUG:
         todir = '../processed_features_debug{}/'.format(DEBUG)
     else:
         todir = '../processed_features/'
 
-    
     ## done
-    gen_label_encode(df, todir, '.pickle')
-    gen_time_feature(df, todir, '.pickle')
-    gen_mean_deal_probability (df, todir, '.pickle')
-    gen_mean_price (df, todir, '.pickle')
-    gen_var_deal_probability (df, todir, '.pickle')
-    gen_var_price (df, todir, '.pickle')
-    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', -1)
-    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 1000)
+    # gen_label_encode(df, todir, '.pickle')
+    # gen_time_feature(df, todir, '.pickle')
+    gen_mean_deal_probability (df_good, todir, '.pickle')
+    # gen_mean_price (df, todir, '.pickle')
+    # gen_var_deal_probability (df_good, todir, '.pickle')
+    # gen_var_price (df, todir, '.pickle')
+    # gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', -1)
+    # gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 1000)
+    # gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 30000)
+    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 18000)
     
     ## after translated!!
     # gen_text_feature_from_kernel (df, todir, '.pickle', 'english')
@@ -145,6 +150,24 @@ def read_dataset(dataset):
     print(df.head())
     return df
 
+def read_dataset_deal_probability(dataset, seed):                   
+    debug = DEBUG
+    if debug:
+        filename_train = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'train', debug)  
+        filename_test = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'test', debug)                                                                    
+    else:
+        filename_train = '../input/{}.feather'.format('train')  
+        filename_test = '../input/{}.feather'.format('test')  
+
+    print_doing('reading train, test and merge')    
+    train_df, test_df = read_train_test(filename_train, filename_test, '.feather', is_merged=0)
+    df = find_df_local_valid_and_make_deal_prob_nan(train_df, test_df, seed)
+    print_memory()
+    print(df.head())
+    return df
+
 def get_svdtruncated_vectorizer(todir):
     print_doing('doing svdtruncated text feature')
     filename = todir + 'text_feature_kernel.pickle'
@@ -188,6 +211,20 @@ def read_dataset_origin(dataset):
     df = read_train_test(filename_train, filename_test, '.feather', is_merged=1)
     print_memory()
     print(df.head())
+    return df
+
+def find_df_local_valid_and_make_deal_prob_nan(train_df, test_df, seed):
+    train_df_train, train_df_valid = train_test_split(train_df, test_size=0.1, random_state=seed)
+    print(train_df); print(train_df.info())
+    print(train_df_train); print(train_df_train.info())
+    print(train_df_valid); print(train_df_valid.info())
+    train_df_valid['deal_probability'] = np.nan
+    train_df_good = pd.concat([train_df_train, train_df_valid], axis=0)
+    print(train_df_valid); print(train_df_valid.info())
+    train_df_good.sort_index(inplace=True)
+    print(train_df_good); print(train_df_good.info())
+    df = pd.concat([train_df_good, test_df], axis=0)
+
     return df
 
 def test():

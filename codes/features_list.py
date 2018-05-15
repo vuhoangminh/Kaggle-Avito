@@ -62,6 +62,14 @@
 #     'uty_pcn_mean_dp'
 # ]        
 
+SEED_LIST = [
+    3029,   # 0.0038
+    3568,   # 0.0041
+    8743,   # 0.0041
+    3883,   # 0.0041
+    9867,   # 0.0041
+]
+
 PREDICTORS_BASED = [
     'time', 'cat_encode', 'len_feature_kernel',
 ] 
@@ -73,6 +81,28 @@ PREDICTORS_OVERFIT = [
     'uid_pcn_cn_mean_dp',
     'uid_pcn_mean_dp',
 ] 
+
+PREDICTORS_TRY = [
+    'uid_cn_mean_pr',
+    'cty_pcn_var_pr',
+    'uty_pcn_cn_mean_dp',
+    'cty_uty_pcn_cn_var_pr',
+    'uty_cn_var_dp',
+    'cty_uty_var_pr',
+    'cty_pcn_cn_var_pr',
+    'pcn_cn_mean_dp',
+    'uid_pcn_mean_pr',
+    'uty_cn_mean_dp',
+    'cty_mean_dp',
+    'cn_mean_dp',
+    'reg_pcn_mean_pr',
+    'cty_uty_mean_dp',
+    'pcn_var_dp',
+    'uty_pcn_cn_var_dp',
+    'cty_uty_pcn_var_pr',
+    'cty_pcn_mean_pr',
+    'cty_uty_pcn_cn_mean_pr',
+]
 
 PREDICTORS_GOOD = [
     'cty_uty_pcn_cn_mean_dp',   #151

@@ -1,6 +1,7 @@
 import pickle, os
 import pandas as pd
 import numpy as np
+import random
 
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
@@ -76,17 +77,37 @@ files = glob.glob(featuredir + '*.pickle')
 
 
 np.random.seed(1988)
+random.seed(1988)
 
 df = pd.DataFrame({'A' : ['foo', 'bar', 'foo', 'bar',
    'foo', 'bar', 'foo', 'foo'],
    'B' : ['one', 'one', 'two', 'three',
    'two', 'two', 'one', 'three'],
-   'C' : np.random.randint(8),
-   'D' : np.random.randint(8),
-   'label': np.random.randint(8)})     
+   'C' : random.sample(range(20), 8),
+   'D' : random.sample(range(20), 8),
+   'label': random.sample(range(20), 8)})     
 print(df)   
-
 
 df2 = df.copy() 
 print(df)
 
+df3, df4 = train_test_split(df2, test_size=0.1, random_state=1988)
+
+
+print(df3.index.values)
+
+
+df5 = df.ix[df3.index.values]
+print(df5)
+
+array1 = df[['C','D','label']].values
+print(array1)
+
+array2, array3 = train_test_split(array1, test_size=0.1, random_state=1988)
+
+print(df3)
+print(array2)
+
+
+print(df4)
+print(array3)
