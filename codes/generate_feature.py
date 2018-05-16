@@ -21,7 +21,8 @@ from sklearn.model_selection import train_test_split
 from lib.print_info import print_debug, print_doing, print_memory, print_doing_in_task
 from lib.read_write_file import save_csv, save_feather, save_file, save_pickle
 from lib.read_write_file import load_csv, load_feather, load_pickle, read_train_test
-from lib.gen_feature import generate_groupby_by_type_and_columns, create_time, measure_length, map_key, create_text_feature, create_label_encode
+from lib.gen_feature import generate_groupby_by_type_and_columns, create_time, \
+    measure_length, map_key, create_text_feature, create_label_encode, create_aggregated_features_kernel
 import lib.configs as configs
 import features_list
 
@@ -55,36 +56,50 @@ def main():
     DATASET = args.dataset
     DEBUG = args.debug
     print_debug(DEBUG)
-    df = read_dataset(DATASET)
-    df_good = read_dataset_deal_probability(DATASET, 1988)
-    if DEBUG:
-        save_csv(df, 'df.csv')
-        save_csv(df_good, 'df_good.csv')
+    
     if DEBUG:
         todir = '../processed_features_debug{}/'.format(DEBUG)
     else:
-        todir = '../processed_features/'
+        todir = '../processed_features/'    
+    gen_aggregated_kernel(todir, '.pickle')
 
+def gen_aggregated_kernel(todir, ext):
+    train, test, train_active, test_active, \
+        train_periods, test_periods = read_dataset_aggregated_kernel()
+
+    gp = create_aggregated_features_kernel(train, test, train_active, test_active,
+            train_periods, test_periods, todir, ext)
+
+    if DEBUG: print(gp.head()), print (gp.info())
+    del gp; gc.collect()
+    print_memory()
+
+def done_already(df,df_good,todir):
+    df = read_dataset()
+    df_good = read_dataset_deal_probability(1988)
+    if DEBUG:
+        save_csv(df, 'df.csv')
+        save_csv(df_good, 'df_good.csv')
     ## done
-    # gen_label_encode(df, todir, '.pickle')
-    # gen_time_feature(df, todir, '.pickle')
+    gen_label_encode(df, todir, '.pickle')
+    gen_time_feature(df, todir, '.pickle')
     gen_mean_deal_probability (df_good, todir, '.pickle')
-    # gen_mean_price (df, todir, '.pickle')
-    # gen_var_deal_probability (df_good, todir, '.pickle')
-    # gen_var_price (df, todir, '.pickle')
-    # gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', -1)
-    # gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 1000)
-    # gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 30000)
+    gen_mean_price (df, todir, '.pickle')
+    gen_var_deal_probability (df_good, todir, '.pickle')
+    gen_var_price (df, todir, '.pickle')
+    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', -1)
+    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 1000)
+    gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 30000)
     gen_text_feature_from_kernel (df, todir, '.pickle', 'russian', 18000)
     
     ## after translated!!
     # gen_text_feature_from_kernel (df, todir, '.pickle', 'english')
     # gen_len_title_description_feature(df, todir, '.pickle') 
     # get_svdtruncated_vectorizer(todir)
-    
+
 def gen_label_encode(df, todir, ext):
     gp = create_label_encode(df, todir, ext)
-    if DEBUG: print(df.head()), print (gp.head())
+    if DEBUG: print(df.head()), print(gp.info())
     del gp; gc.collect()
     print_memory()
 
@@ -133,7 +148,7 @@ def gen_var_price (df, todir, ext):
         del gp; gc.collect()    
         print_memory()
 
-def read_dataset(dataset):                   
+def read_dataset():                   
     debug = DEBUG
     if debug:
         filename_train = '../input/debug{}/{}_debug{}.feather'.format(
@@ -150,7 +165,7 @@ def read_dataset(dataset):
     print(df.head())
     return df
 
-def read_dataset_deal_probability(dataset, seed):                   
+def read_dataset_deal_probability(seed):                   
     debug = DEBUG
     if debug:
         filename_train = '../input/debug{}/{}_debug{}.feather'.format(
@@ -167,6 +182,59 @@ def read_dataset_deal_probability(dataset, seed):
     print_memory()
     print(df.head())
     return df
+
+def read_dataset_aggregated_kernel():
+    debug = DEBUG
+    if debug:
+        filename_train = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'train', debug)  
+        filename_test = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'test', debug)   
+        filename_train_active = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'train_active', debug)  
+        filename_test_active = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'test_active', debug)  
+        filename_periods_train = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'periods_train', debug)  
+        filename_periods_test = '../input/debug{}/{}_debug{}.feather'.format(
+                debug, 'periods_test', debug)                                                                                                       
+    else:
+        filename_train = '../input/{}.feather'.format('train')  
+        filename_test = '../input/{}.feather'.format('test') 
+        filename_train_active = '../input/{}.feather'.format('train_active')  
+        filename_test_active = '../input/{}.feather'.format('test_active')  
+        filename_periods_train = '../input/{}.feather'.format('periods_train')  
+        filename_periods_test = '../input/{}.feather'.format('periods_test')                 
+
+    train = load_feather(filename_train)
+    train_active = load_feather(filename_train_active)
+    test = load_feather(filename_test)
+    test_active = load_feather(filename_test_active)
+    train_periods = load_feather(filename_periods_train)
+    test_periods = load_feather(filename_periods_test)
+
+    usecols = ['item_id', 'user_id']
+    train = drop_unused_col(train,usecols)
+    test = drop_unused_col(test,usecols)
+    train_active = drop_unused_col(train_active,usecols)
+    test_active = drop_unused_col(test_active,usecols)
+
+    datetimecols = ['date_from', 'date_to']
+    train_periods = set_datetime_col(train_periods, datetimecols)
+    test_periods = set_datetime_col(test_periods, datetimecols)
+
+    return train, test, train_active, test_active, train_periods, test_periods
+
+def drop_unused_col(df,usecols):
+    for col in df:
+        if col not in usecols:
+            df = df.drop([col],axis=1)
+    return df                   
+
+def set_datetime_col(df,datetimecols):
+    for col in datetimecols:
+        df[col] = pd.to_datetime(df[col])
+    return df        
 
 def get_svdtruncated_vectorizer(todir):
     print_doing('doing svdtruncated text feature')
@@ -224,7 +292,6 @@ def find_df_local_valid_and_make_deal_prob_nan(train_df, test_df, seed):
     train_df_good.sort_index(inplace=True)
     print(train_df_good); print(train_df_good.info())
     df = pd.concat([train_df_good, test_df], axis=0)
-
     return df
 
 def test():

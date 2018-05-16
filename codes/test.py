@@ -76,38 +76,8 @@ files = glob.glob(featuredir + '*.pickle')
 # print(df)
 
 
-np.random.seed(1988)
-random.seed(1988)
+filename = '../input/aggregated_features.csv'
+df = load_csv(filename)
 
-df = pd.DataFrame({'A' : ['foo', 'bar', 'foo', 'bar',
-   'foo', 'bar', 'foo', 'foo'],
-   'B' : ['one', 'one', 'two', 'three',
-   'two', 'two', 'one', 'three'],
-   'C' : random.sample(range(20), 8),
-   'D' : random.sample(range(20), 8),
-   'label': random.sample(range(20), 8)})     
-print(df)   
-
-df2 = df.copy() 
-print(df)
-
-df3, df4 = train_test_split(df2, test_size=0.1, random_state=1988)
-
-
-print(df3.index.values)
-
-
-df5 = df.ix[df3.index.values]
-print(df5)
-
-array1 = df[['C','D','label']].values
-print(array1)
-
-array2, array3 = train_test_split(array1, test_size=0.1, random_state=1988)
-
-print(df3)
-print(array2)
-
-
-print(df4)
-print(array3)
+savename = '../input/kernel_aggregated_features.pickle'
+save_pickle(df, savename)

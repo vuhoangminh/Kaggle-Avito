@@ -4,6 +4,7 @@ from path import Path
 import pickle
 import pandas as pd
 import os, psutil
+import time
 
 from keras.models import Model
 from keras.layers import Dense, Dropout
@@ -13,17 +14,6 @@ from utils.nasnet import NASNetMobile, preprocess_input
 from utils.score_utils import mean_score, std_score
 
 process = psutil.Process(os.getpid())
-
-from keras import backend as K
-num_cores = 4
-num_GPU = 1
-num_CPU = 1
-
-config = tf.ConfigProto(intra_op_parallelism_threads=num_cores,\
-        inter_op_parallelism_threads=num_cores, allow_soft_placement=True,\
-        device_count = {'CPU' : num_CPU, 'GPU' : num_GPU})
-session = tf.Session(config=config)
-K.set_session(session)
 
 def print_debug(debug):
     if not debug:
@@ -69,7 +59,8 @@ target_size = (224, 224)
 def main():
 
     print_debug(DEBUG)
-    for dataset in [train_image_dir, test_image_dir]:
+    # for dataset in [train_image_dir, test_image_dir]:
+    for dataset in [test_image_dir, train_image_dir]:        
         print('========================================================================')
         print('NASNET')
         print('PROCESSING', dataset)
@@ -82,7 +73,10 @@ def main():
         imgs += Path(dataset).files('*.jpg')
         imgs += Path(dataset).files('*.jpeg')
 
-        with tf.device("CPU:0"):
+        N = len(imgs)
+        i = 0
+        # with tf.device("CPU:0"):
+        with tf.device("/device:GPU:0"):
             print('>> init')
             base_model = NASNetMobile((224, 224, 3), include_top=False, pooling='avg', weights=None)
             x = Dropout(0.75)(base_model.output)
@@ -94,8 +88,24 @@ def main():
 
             score_list = []
 
+            df_temp = pd.DataFrame()
+            if DEBUG: STEP=3
+            else: STEP=1000
+            if dataset == train_image_dir: todir = train_filename
+            else: todir = test_filename  
+
             for img_path in imgs:
-                print("\n>> Evaluating : ", img_path)
+                if i%STEP==0:
+                    end_step = time.time()
+                    print('----------------------------')
+                    print('{}/{}'.format(i,N))  
+                    if i>0: 
+                        print('time elapse:', end_step-start_step)
+                        df = pd.concat( [df, df_temp], axis=0)                     
+                        save_pickle(df, todir)
+                        df_temp = pd.DataFrame()
+                    start_step = time.time()                        
+                if DEBUG: print("\n>> Evaluating : ", img_path)
 
                 img = load_img(img_path, target_size=target_size)
                 x = img_to_array(img)
@@ -111,8 +121,7 @@ def main():
                 file_name = Path(img_path).name.lower()
                 score_list.append((file_name, mean))
             
-                print("NIMA Score : %0.3f +- (%0.3f)" % (mean, std))
-                print()
+                if DEBUG: print("NIMA Score : %0.3f +- (%0.3f)" % (mean, std))
 
                 filename_w_ext = os.path.basename(img_path)
                 filename, file_extension = os.path.splitext(filename_w_ext)
@@ -124,15 +133,12 @@ def main():
 
                 df = pd.concat( [df, temp], axis=0) 
 
-        df = df.reset_index(drop=True)
-        print (df)   
+                i = i+1
 
-        if dataset == train_image_dir:
-            todir = train_filename
-        else:
-            todir = test_filename    
-                    
-        save_pickle(df, train_filename)
+        df = pd.concat([df, df_temp], axis=0)
+        df = df.reset_index(drop=True)
+        print (df)               
+        save_pickle(df, todir)
 
 if __name__ == '__main__':
     main()    

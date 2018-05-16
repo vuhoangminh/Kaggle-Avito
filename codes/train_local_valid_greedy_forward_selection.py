@@ -81,6 +81,9 @@ def main():
     # OPTION=args.option
     print_debug(DEBUG)
 
+    done_feature_df = load_csv('csv/forward_selection.csv')
+    print(done_feature_df)
+
     if DEBUG:
         dir_feature = '../processed_features_debug2/' 
     else:
@@ -178,7 +181,8 @@ def train(X,y,num_leave,full_predictors,categorical,predictors,boosting_type,opt
         'boosting_type': boosting_type,
         'objective': 'regression',
         'metric': 'rmse',
-        'max_depth': 15,
+        'num_leave': 15,
+        'max_depth': 7,
         'feature_fraction': 0.7,
         'bagging_fraction': 0.8,
         'learning_rate': 0.1,
